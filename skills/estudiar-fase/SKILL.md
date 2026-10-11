@@ -10,7 +10,7 @@ Una sesión de estudio: uno o varios subtemas cortos de la fase en curso. Empiez
 
 ## Pasos
 
-1. **Sitúate.** Lee `<RAIZ>/AGENTS.md`, `PLAN.md`, `MISION.md`, `BASES.md` y los `NOTAS.md`. El subtema es el primer `[ ]` del árbol, y la fase en curso, la suya: lee su archivo en `fases/`. Si ese subtema ya tiene página, la sesión anterior quedó a medias y se retoma. Hecho cuando dices fase y subtema en una línea.
+1. **Sitúate.** El curso es, en este orden: el de la carpeta donde se abrió la sesión (la que tiene `MISION.md`, o una superior); el que diga el argumento; el único de `<RAIZ>` con `PLAN.md`. Si hay varios y nada lo decide, enuméralos y pregunta. Lee `<RAIZ>/AGENTS.md`, `PLAN.md`, `MISION.md`, `BASES.md` y los `NOTAS.md`. El subtema es el primer `[ ]` del árbol, y la fase en curso, la suya: lee su archivo en `fases/`. Si ese subtema ya tiene página, la sesión anterior quedó a medias y se retoma. Hecho cuando dices curso, fase y subtema en una línea.
 
 2. **Ofrece los repasos vencidos** con el paso 2 de `../estudiar/SKILL.md`. Hecho cuando no hay o la persona eligió.
 
@@ -30,5 +30,5 @@ Una sesión de estudio: uno o varios subtemas cortos de la fase en curso. Empiez
 6. **Evalúa.** Sigue `../evaluar/SKILL.md` y vuelve aquí con su resultado. Si vuelve tras 2 fallos seguidos, rehaz la página desde otro ángulo, con lo que falló, comprueba en `BASES.md` si falta un requisito y regresa al paso 5.
 
 7. **Cierra la sesión.**
-   - **Quedan subtemas en la fase:** si el siguiente es corto y la sesión aún es breve, vuelve al paso 4 con él. Si no, termina y di que se sigue con `/estudiar-fase` en una sesión nueva.
+   - **Quedan subtemas en la fase:** si el siguiente es corto y la sesión aún es breve, vuelve al paso 4 con él. Si no, termina y di que se sigue con `/estudiar-fase` en una sesión nueva: abierta en la carpeta del curso (di su ruta) o con el curso como argumento, `/estudiar-fase <curso>`.
    - **Fase terminada** (ningún `[ ]`): revisa la fase siguiente con lo observado (fallos, dudas, `NOTAS.md`). Si necesita cambios, lee `../fases-plan/SKILL.md` y síguelo en modo **Revisar**. Si no, di qué fase empieza.

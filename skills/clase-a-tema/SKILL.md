@@ -10,7 +10,7 @@ Para cursos de una institución. La fuente es la clase: lo que dijo el docente m
 
 ## Pasos
 
-1. **Sitúate.** Lee `<RAIZ>/AGENTS.md`, `MISION.md` y los `NOTAS.md` de la materia. Si hay páginas de esta materia con `estado: nuevo`, una sesión anterior quedó a medias: ofrece retomarlas en el paso 6. El material es el que indica el argumento; si no hay, enumera el de `_Inbox/` del periodo para esta materia y pregunta. Hecho cuando hay material o páginas que retomar.
+1. **Sitúate.** La materia es, en este orden: la de la carpeta donde se abrió la sesión (la que tiene `MISION.md`, o una superior); la que diga el argumento; la única de una institución en `<RAIZ>`. Si hay varias y nada lo decide, enuméralas y pregunta. Lee `<RAIZ>/AGENTS.md`, `MISION.md` y los `NOTAS.md` de la materia. Si hay páginas de esta materia con `estado: nuevo`, una sesión anterior quedó a medias: ofrece retomarlas en el paso 6. El material es el que indica el argumento; si no hay, enumera el de `_Inbox/` del periodo para esta materia y pregunta. Hecho cuando hay material o páginas que retomar.
 
 2. **Ofrece los repasos vencidos** con el paso 2 de `../estudiar/SKILL.md`. Hecho cuando no hay o la persona eligió.
 
@@ -34,4 +34,4 @@ Para cursos de una institución. La fuente es la clase: lo que dijo el docente m
 
 6. **Estudia y evalúa cada página** con los pasos 5 y 6 de `../estudiar-fase/SKILL.md`. Hecho cuando cada página está evaluada o la sesión se cierra.
 
-7. **Cierra la sesión.** Si quedan páginas con `estado: nuevo` y la sesión ya es larga, termina y di que se retoman con `/clase-a-tema` en una sesión nueva.
+7. **Cierra la sesión.** Si quedan páginas con `estado: nuevo` y la sesión ya es larga, termina y di que se retoman con `/clase-a-tema` en una sesión nueva: abierta en la carpeta del curso (di su ruta) o con el curso como argumento, `/clase-a-tema <curso>`.

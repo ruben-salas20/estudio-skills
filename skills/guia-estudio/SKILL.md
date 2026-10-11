@@ -37,6 +37,6 @@ Las sesiones nuevas leen todo de los archivos del curso: `MISION.md`, `NOTAS.md`
    4. el primer `[ ]` de cada `PLAN.md` → `/estudiar-fase`;
    5. 10 o más líneas en los registros de `Evaluaciones/` desde la última entrada de `<RAIZ>/MEJORAS.md` → `/mejorar-estudio`.
 
-   Da un solo comando con el curso y el motivo en una frase. Después, en una línea, lo demás que encontraste. Hecho cuando la persona sabe qué escribir.
+   Da un solo comando, con el curso como argumento (`/estudiar-fase <curso>`) o la carpeta donde abrir la sesión, y el motivo en una frase. Después, en una línea, lo demás que encontraste. Hecho cuando la persona sabe qué escribir.
 
 3. **Responde la pregunta** con el mapa y, si trata de una skill concreta, con su `SKILL.md`. Termina diciendo qué comando usar. Hecho cuando la respuesta nombra la skill que resuelve su caso.

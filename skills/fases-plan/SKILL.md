@@ -45,4 +45,4 @@ Escribe un archivo por fase en `fases/` y, una vez que `/plan-estudio` lo creó,
 
 3. **Ajusta `PLAN.md`** si cambió la estructura: subtemas nuevos con `[ ]`, quitados o movidos, sesiones estimadas. Enlaza cada fase a su archivo. Hecho cuando el árbol y `fases/` dicen lo mismo.
 
-4. **Termina.** Di qué fase toca y que se empieza con `/estudiar-fase` en una sesión nueva.
+4. **Termina.** Di qué fase toca y que se empieza con `/estudiar-fase` en una sesión nueva: abierta en la carpeta del curso (di su ruta) o con el curso como argumento, `/estudiar-fase <curso>`.

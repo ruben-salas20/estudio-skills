@@ -27,5 +27,5 @@ Crea el sitio donde vivirá un estudio a fondo. Cada skill posterior crea sus pr
    Hecho cuando todo lo que `/estudiar` averiguó está en uno de estos archivos.
 
 5. **Pasa a la skill siguiente.**
-   - **Fuente institución:** termina. Di que cada clase se procesa con `/clase-a-tema` en una sesión nueva.
+   - **Fuente institución:** termina. Di que cada clase se procesa con `/clase-a-tema` en una sesión nueva: abierta en la carpeta del curso (di su ruta) o con el curso como argumento, `/clase-a-tema <curso>`.
    - **Otra fuente:** lee `../indagar/SKILL.md` y síguelo.
