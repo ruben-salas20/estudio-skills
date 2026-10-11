@@ -38,6 +38,6 @@ Escribe `PLAN.md`: el árbol del curso. Cada rama de primer nivel es una **fase*
    - <Subtema>: <motivo>
    ```
 
-   La numeración (`1.2`) será el prefijo de la página del subtema en `Temas/`. Las fases no llevan marca: una fase está terminada cuando lo están sus subtemas. Hecho cuando el archivo existe.
+   La numeración (`1.2`) será el prefijo de la página del subtema en `Temas/`. Las fases no llevan marca: una fase está terminada cuando ninguno de sus subtemas sigue en `[ ]`. Hecho cuando el archivo existe.
 
 5. **Pasa a la skill siguiente.** Lee `../fases-plan/SKILL.md` y síguelo.

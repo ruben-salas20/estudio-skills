@@ -20,7 +20,7 @@ Prepara las dos entradas del plan: qué dicen las fuentes del tema y desde dónd
 
    Hecho cuando cada cosa que dijo saber está **comprobada** o **por comprobar**.
 
-4. **Escribe `BASES.md`** en la carpeta del curso: lo que sabe (comprobado), lo que cree saber pero falló, lo que no sabe y la fecha. Si aprendiste algo de cómo aprende, añádelo a `NOTAS.md`. Hecho cuando el archivo existe.
+4. **Escribe `BASES.md`** en la carpeta del curso: lo que sabe (comprobado), lo que cree saber pero falló, lo que no sabe y la fecha. Si aprendiste algo de cómo aprende, añádelo a `NOTAS.md`: lo general va a `<RAIZ>/NOTAS.md` y lo propio del curso, al suyo. Hecho cuando el archivo existe.
 
 5. **Recoge el informe del subagente.** Espera a que termine. Cruza su mapa con `BASES.md`: marca los requisitos previos que la persona no tiene. Muestra los huecos y las contradicciones, si hay. Hecho cuando la persona los vio.
 

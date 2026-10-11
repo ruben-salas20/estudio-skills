@@ -19,6 +19,6 @@ Trabaja solo lo que falló en `/evaluar`, no el subtema entero.
 
    Sube de nivel solo cuando el anterior no basta. Hecho cuando la persona explica cada idea con sus palabras.
 
-3. **Arregla la causa.** Si una idea no estaba en la página o no se entendía, corrige la página. Si el fallo muestra algo de cómo aprende la persona, añádelo a `NOTAS.md`. Hecho cuando cada fallo tiene su causa atendida o descartada.
+3. **Arregla la causa.** Si una idea no estaba en la página o no se entendía, corrige la página. Si el fallo muestra algo de cómo aprende la persona, añádelo a `NOTAS.md`: lo general va a `<RAIZ>/NOTAS.md` y lo propio del curso, al suyo. Hecho cuando cada fallo tiene su causa atendida o descartada.
 
 4. **Vuelve a evaluar.** Si llegaste desde `/evaluar`, vuelve allí. Si no, lee `../evaluar/SKILL.md` y síguelo en modo **Tras estudiar**.

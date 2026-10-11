@@ -30,4 +30,4 @@ Adapta el sistema a la persona con lo observado. Propone cambios a las reglas (`
 
 4. **Propón los cambios** de uno en uno. Cada propuesta dice: qué archivo y qué texto cambia, la evidencia con cifras y la métrica que dirá si funcionó. Si un cambio anterior no funcionó, propón revertirlo. Hecho cuando la persona aprobó o rechazó cada propuesta.
 
-5. **Aplica y registra.** Aplica lo aprobado. En `MEJORAS.md` añade, por cada propuesta: fecha, cambio, evidencia, métrica y si se aprobó o se rechazó. Una propuesta rechazada vuelve solo con evidencia nueva. Hecho cuando cada propuesta tiene su entrada.
+5. **Aplica y registra.** Aplica lo aprobado. En `MEJORAS.md` añade, por cada propuesta: fecha, cambio exacto (archivo, texto antes y después), evidencia, métrica y si se aprobó o se rechazó. Una propuesta rechazada vuelve solo con evidencia nueva. Hecho cuando cada propuesta tiene su entrada.

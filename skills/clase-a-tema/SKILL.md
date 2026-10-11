@@ -10,7 +10,7 @@ Para cursos de una institución. La fuente es la clase: lo que dijo el docente m
 
 ## Pasos
 
-1. **Sitúate.** Lee `<RAIZ>/AGENTS.md`, `MISION.md` y los `NOTAS.md` de la materia. Si hay páginas de esta materia con `estado: nuevo`, una sesión anterior quedó a medias: ofrece retomarlas en el paso 5. El material es el que indica el argumento; si no hay, enumera el de `_Inbox/` del periodo para esta materia y pregunta. Hecho cuando hay material o páginas que retomar.
+1. **Sitúate.** Lee `<RAIZ>/AGENTS.md`, `MISION.md` y los `NOTAS.md` de la materia. Si hay páginas de esta materia con `estado: nuevo`, una sesión anterior quedó a medias: ofrece retomarlas en el paso 6. El material es el que indica el argumento; si no hay, enumera el de `_Inbox/` del periodo para esta materia y pregunta. Hecho cuando hay material o páginas que retomar.
 
 2. **Ofrece los repasos vencidos** con el paso 2 de `../estudiar/SKILL.md`. Hecho cuando no hay o la persona eligió.
 

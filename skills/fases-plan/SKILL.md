@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Fases del plan
 
-Escribe un archivo por fase en `fases/` y es la única skill que cambia la estructura de `PLAN.md`. Las marcas `[ ]`, `[~]` y `[x]` son de `/evaluar`: al tocar el árbol, consérvalas.
+Escribe un archivo por fase en `fases/` y, una vez que `/plan-estudio` lo creó, es la única skill que cambia la estructura de `PLAN.md`. Las marcas `[ ]`, `[~]` y `[x]` son de `/evaluar`: al tocar el árbol, consérvalas.
 
 ## Modos
 
