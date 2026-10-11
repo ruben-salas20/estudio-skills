@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{numero}} {{Subtema}}</title>
+  <meta name="curso" content="{{Curso}}">
+  <meta name="clave" content="{{clave única, p. ej. rust/1.2}}">
+  <meta name="estado" content="nuevo">
+  <meta name="repasar" content="">
+  <link rel="stylesheet" href="{{ruta al kit}}/kit.css">
+  <script src="{{ruta al kit}}/kit.js"></script>
+</head>
+<body>
+<main>
+  <p class="cabecera"><a href="{{ruta al índice}}">{{Curso}}</a> · {{numero}}</p>
+  <h1>{{Subtema}}</h1>
+
+  <div class="metas">
+    <strong>Al terminar podrás:</strong>
+    <ul>
+      <li>{{meta del subtema}}</li>
+    </ul>
+  </div>
+
+  <h2>{{Intuición}}</h2>
+  <p>{{El porqué antes del procedimiento.}}</p>
+
+  <!-- Opcionales, solo si aportan:
+  <div class="aviso error-comun"><p><strong>Error común:</strong> …</p></div>
+  <pre class="mermaid">flowchart LR …</pre>
+  $$ … $$
+  -->
+
+  <h2>Fuentes</h2>
+  <ul>
+    <li><a href="{{ruta a Recursos/…}}">{{fuente}}</a></li>
+  </ul>
+
+  <section class="repaso" aria-labelledby="repaso-t">
+    <h2 id="repaso-t">Preguntas de repaso</h2>
+    <div class="q"><p>{{Pregunta abierta que no se responda copiando una línea.}}</p></div>
+    <div class="q">
+      <p>{{Pregunta de opción múltiple.}}</p>
+      <ol class="ops">
+        <li data-correcta>{{La correcta.}}</li>
+        <li data-por="{{Por qué esta no.}}">{{Distractor.}}</li>
+      </ol>
+      <div class="explica"><p>{{Explicación que aparece al elegir.}}</p></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
