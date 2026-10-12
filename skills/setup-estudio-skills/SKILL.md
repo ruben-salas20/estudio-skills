@@ -10,7 +10,7 @@ Se ejecuta después de `npx skills add` o `npx skills update`. Las skills ya est
 
 ## Pasos
 
-1. **Comprueba la instalación.** Busca la carpeta de skills del agente (en Claude Code, `~/.claude/skills/`). Las skills se leen entre ellas (`../evaluar/SKILL.md`), así que deben estar todas las del flujo; `crear-kit` y `videos` son opcionales. Si falta alguna del flujo, da el comando para instalarlas todas y para. Si está `videos`, necesita Node, Playwright, Chromium y ffmpeg; `escenas-3d` necesita Chromium o Chrome. Comprueba cuáles faltan y da el comando para instalarlos en este sistema, sin ejecutarlo. Hecho cuando están todas y la persona sabe qué le falta instalar.
+1. **Comprueba la instalación.** Busca la carpeta de skills del agente (en Claude Code, `~/.claude/skills/`). Las skills se leen entre ellas (`../evaluar/SKILL.md`), así que deben estar todas las del flujo; `crear-kit` es opcional. Si falta alguna del flujo, da el comando para instalarlas todas y para. `escenas-3d` y `videos` necesitan Chromium o Chrome; `videos`, además, Node, Playwright y ffmpeg solo para exportar a MP4 o poner voz. Comprueba cuáles faltan y da el comando para instalarlos en este sistema, sin ejecutarlo. Hecho cuando están todas y la persona sabe qué le falta instalar.
 
 2. **Pregunta las preferencias,** de una en una, con una opción por defecto en cada una:
    1. **Estilo de explicación:** conciso o detallado; formal o cercano.

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -24,31 +24,41 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #track{flex:1 1 220px;position:relative;height:30px;display:grid;gap:3px;cursor:pointer;touch-action:none;user-select:none}
 #track .seg{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-top:2px solid var(--line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:6px}
-#track .seg.on{border-color:var(--accent);color:var(--ink)}
+#track .seg.on{border-color:var(--accent);color:var(--ink)}#track .seg.estrecho{color:transparent}
 #head{position:absolute;top:-5px;left:0;width:2px;height:12px;background:var(--ink);transform:translateX(-1px);pointer-events:none}
 #tc{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
 #hint{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
 kbd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;color:var(--ink)}
-#frame:fullscreen{width:100vw;height:100vh;border-radius:0}
+#bar button.ico{width:34px;height:34px;padding:0;display:grid;place-items:center}#bar button.ico svg{width:16px;height:16px}
+html.fondo-claro #start{color:#1B1F3B;background:radial-gradient(ellipse at center,rgba(255,255,255,.15),rgba(255,255,255,.6))}html.fondo-claro #start .ring{border-color:#1B1F3B;background:rgba(255,255,255,.55)}html.fondo-claro #start .name,html.fondo-claro #start .spec{color:#1B1F3B;text-shadow:0 1px 12px rgba(255,255,255,.8)}
 html.bare body{padding:0;gap:0}html.bare #bar,html.bare #hint{display:none}html.bare #frame{width:100vw;height:100vh;box-shadow:none;border-radius:0}
+html.incrustado body,html:fullscreen body{padding:0;gap:0}html.incrustado #hint,html:fullscreen #hint{display:none}html.incrustado #frame,html:fullscreen #frame{width:100vw;height:100vh;box-shadow:none;border-radius:0}
+html.incrustado #bar,html:fullscreen #bar{position:fixed;inset:auto 0 0 0;width:auto;padding:22px 12px 8px;background:linear-gradient(transparent,rgba(0,0,0,.75));opacity:0;transition:opacity .2s;z-index:5}
+html.controles #bar{opacity:1}html.incrustado:not(.controles) #frame,html:fullscreen:not(.controles) #frame{cursor:none}
 @media (max-width:640px){#bar button{padding:5px 10px;font-size:12px}#track{order:10;flex-basis:100%}}
 </style>
 </head>
 <body>
 <div id="frame">
   <canvas id="film" aria-label="{{TITULO}}: {{SINOPSIS}}"></canvas>
-  <button id="start" aria-label="Play {{TITULO}} with sound"><span class="ring"><span class="tri"></span></span><span class="name">{{TITULO}}</span><span class="spec" id="spec"></span></button>
+  <button id="start" aria-label="Reproducir {{TITULO}} con sonido"><span class="ring"><span class="tri"></span></span><span class="name">{{TITULO}}</span><span class="spec" id="spec"></span></button>
 </div>
-<div id="bar" role="toolbar" aria-label="Film controls">
-  <button id="pp" aria-pressed="false">Play</button>
-  <button id="rs">Restart</button>
-  <div id="track" aria-label="Scrub the film"><span id="head"></span></div>
+<div id="bar" role="toolbar" aria-label="Controles del vídeo">
+  <button id="pp" class="ico" aria-pressed="false" aria-label="Reproducir" title="Reproducir"></button>
+  <button id="rs" class="ico" aria-label="Reiniciar" title="Reiniciar"></button>
+  <div id="track" aria-label="Recorrer el vídeo"><span id="head"></span></div>
   <span id="tc"></span>
-  <button id="sm">Stop-motion · 12 poses/s</button>
-  <button id="snd">Sound off</button>
-  <button id="fs">Full screen</button>
+  <button id="sm" class="ico" aria-label="Stop-motion" title="Stop-motion"></button>
+  <button id="snd" class="ico" aria-label="Sonido apagado" title="Sonido apagado"></button>
+  <button id="fs" class="ico" aria-label="Pantalla completa" title="Pantalla completa"></button>
 </div>
-<p id="hint">Click the world to poke it, drag to blow on it · <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> one exposure · <kbd>S</kbd> stop-motion/smooth · <kbd>1</kbd>–<kbd>9</kbd> shots · <kbd>M</kbd> mute</p>
+<p id="hint"><kbd>Espacio</kbd> reproducir/pausar · <kbd>←</kbd><kbd>→</kbd> una pose · <kbd>S</kbd> stop-motion/fluido · <kbd>1</kbd>–<kbd>9</kbd> planos · <kbd>M</kbd> silenciar</p>
+<script>
+// Dentro de una nota (iframe) el vídeo ocupa todo el hueco y los controles aparecen encima al pasar el ratón.
+if (window.self !== window.top) document.documentElement.classList.add('incrustado');
+// Cualquier fallo se escribe encima del vídeo, para que salga en la captura de revisión.
+addEventListener('error', e => { const p = document.createElement('pre'); p.textContent = 'ERROR: ' + e.message + (e.lineno ? ' (línea ' + e.lineno + ')' : ''); p.style.cssText = 'position:fixed;inset:auto 0 0 0;margin:0;padding:12px;background:#000;color:#ff5555;font:16px monospace;z-index:99;white-space:pre-wrap'; document.body.append(p); });
+</script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
 //  {{TITULO}} — a film drawn and scored entirely in code.
@@ -67,7 +77,8 @@ const FORMAT = {
   paper: .45,                                // default paper texture baked into every sprite (0 = flat)
   shadow: { dx: 6, dy: 9, blur: 11, a: .3 },  // default contact shadow of every sprite (null = none)
   pixel: false,                              // true: w×h is a pixel grid (e.g. 640×360), shown and exported without smoothing
-  safe: null,                                // zona segura del uso (usos.md): { top, bottom, left, right } en fracciones; solo la dibuja grabar.cjs --zonas
+  poster: null,                              // segundo que se ve antes de dar a reproducir (el póster); null = el fotograma 0
+  safe: null,                                // { top, bottom, left, right } en fracciones: solo la dibuja grabar.cjs --zonas
 };
 const W = FORMAT.w, H = FORMAT.h, FPS = FORMAT.fps, EXPO = FORMAT.expo;
 let DUR = 0, NF = 0; // set at boot from the shots
@@ -310,7 +321,11 @@ function put(ctx, sp, x, y, rot = 0, sc = 1, { alpha = 1, flip = false, shadow =
 // ── atajos de tiempo y cámara que casi todo plano necesita ──
 const lapse = (t, a, d) => clamp((t - a) / d, 0, 1);                    // 0 → 1 mientras t va de a a a + d
 const onFrame = (T, ev) => Math.round(T * FPS) === Math.round(ev * FPS); // true en el fotograma exacto del suceso ev (en step)
-const popIn = u => u <= 0 ? 0 : u < 1 ? eo(u) * 1.12 : 1 + .12 * Math.exp(-(u - 1) * 3) * Math.cos((u - 1) * 8); // escala de aparición con rebote
+const popIn = u => { u = clamp(u, 0, 1); const v = u - 1; return 1 + 2.93 * v * v * v + 1.93 * v * v; }; // escala de aparición: 0 → 1,12 → 1 dentro de u ∈ [0, 1]
+// Principios de animación (SKILL.md, Animación): llegar con sobrepaso, recorrer en arco, estirar sin cambiar de área.
+const llegar = (u, s = .08) => { u = clamp(u, 0, 1); return u < .75 ? (1 + s) * eio(u / .75) : 1 + s - s * eio((u - .75) / .25); }; // 0 → 1 + s (al 75 % del tiempo) → 1: arranca suave, se pasa y vuelve
+const arco = (a, b, u, h) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, k = 4 * h * u * (1 - u); return [lerp(a[0], b[0], u) + k * dy / l, lerp(a[1], b[1], u) - k * dx / l]; }; // de a a b por una curva que se separa h del recto en el centro: hacia arriba si va a la derecha; h < 0, al otro lado
+const estirar = k => [1 / k, k];   // [ancho, alto] con el área intacta: k > 1 estira en la dirección del movimiento, k < 1 aplasta
 function keyframes(K, t) { // [[t, v], ...] ordenados: valor interpolado linealmente en t
   if (t <= K[0][0]) return K[0][1];
   for (let i = 1; i < K.length; i++) if (t <= K[i][0]) return lerp(K[i - 1][1], K[i][1], (t - K[i - 1][0]) / (K[i][0] - K[i - 1][0]));
@@ -715,10 +730,10 @@ function compose(M) {
 // ═══════════════════════════════════════════════════════════════════════════
 //  TU PELÍCULA — solo esta sección cambia de un vídeo a otro.
 //  Define aquí: marionetas (funciones que dibujan con g, se hornean con sprite()),
-//  MELODY + baseScore(), y los planos S1..Sn con la interfaz
+//  MUSIC + baseScore(), y los planos S1..Sn con la interfaz
 //  { name, dur, cam, build, reset, step, snap, draw, score, poke }, cada uno con SHOTS.push(...).
 //  t0/t1 se calculan solos a partir de dur, en el orden de SHOTS.
-//  Contrato completo en ../MOTOR.md; ejemplos resueltos en ../estilos/pruebas/.
+//  Contrato completo en MOTOR.md de la skill; ejemplos resueltos en estilos/pruebas/.
 // ═══════════════════════════════════════════════════════════════════════════
 // KIT-INICIO — pega aquí estilos/<estilo>.js si el estilo trae kit
 // KIT-FIN
@@ -843,12 +858,31 @@ function tick(now) {
 // ── UI ──
 const $ = id => document.getElementById(id);
 const tcFmt = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}.${String(Math.floor((t % 1) * 100)).padStart(2, '0')}`;
+// Iconos de la barra: trazos de 24×24 en el color del texto; el nombre va en aria-label y title.
+const ICONOS = {
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+  pausa: '<path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z" fill="currentColor"/>',
+  reiniciar: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  sonido: '<path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  mudo: '<path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  poses: '<rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 5v14M15 5v14" stroke="currentColor" stroke-width="2"/>',
+  fluido: '<path d="M3 12c3-6 6-6 9 0s6 6 9 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  ampliar: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  salir: '<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+function icono(id, nombre, etiqueta) {
+  const b = $(id);
+  if (b.dataset.icono !== nombre) { b.dataset.icono = nombre; b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS[nombre]}</svg>`; }
+  b.setAttribute('aria-label', etiqueta); b.title = etiqueta;
+}
 function ui() {
+  icono('rs', 'reiniciar', 'Reiniciar');
   const t = Math.max(0, film.f) / FPS;
   $('tc').textContent = `${tcFmt(t)} / ${tcFmt(DUR)}`; $('head').style.left = `${(t / DUR) * 100}%`;
-  $('pp').textContent = film.playing ? 'Pause' : 'Play'; $('pp').setAttribute('aria-pressed', film.playing);
-  $('sm').textContent = film.smooth ? `Smooth · ${FPS} poses/s` : `Stop-motion · ${+(FPS / EXPO).toFixed(1)} poses/s`;
-  $('snd').textContent = !film.audio ? 'Sound off' : film.muted ? 'Muted' : 'Sound on';
+  icono('pp', film.playing ? 'pausa' : 'play', film.playing ? 'Pausar' : 'Reproducir'); $('pp').setAttribute('aria-pressed', film.playing);
+  icono('sm', film.smooth ? 'fluido' : 'poses', film.smooth ? `Fluido · ${FPS} poses/s` : `Stop-motion · ${+(FPS / EXPO).toFixed(1)} poses/s`);
+  icono('snd', !film.audio || film.muted ? 'mudo' : 'sonido', !film.audio ? 'Sonido apagado' : film.muted ? 'Silenciado' : 'Sonido activado');
+  icono('fs', document.fullscreenElement ? 'salir' : 'ampliar', document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa');
   document.querySelectorAll('#track .seg').forEach((el, i) => el.classList.toggle('on', i === film.shotIdx));
 }
 function startFilm() { $('start').hidden = true; film.audio = true; film.started = true; seek(0, false); play(true); }
@@ -857,7 +891,18 @@ $('pp').addEventListener('click', () => { if (!film.started) return startFilm();
 $('rs').addEventListener('click', () => { if (!film.started) return startFilm(); seek(0); if (!film.playing) play(true); });
 $('sm').addEventListener('click', () => { film.smooth = !film.smooth; seek(film.f); });
 $('snd').addEventListener('click', () => { if (!film.audio) { film.audio = true; film.muted = false; if (film.playing) audioFrom(film.clock); } else { film.muted = !film.muted; if (SND) SND.master.gain.setTargetAtTime(film.muted ? 0 : .92, AC.currentTime, .03); } ui(); });
-$('fs').addEventListener('click', () => { const el = $('frame'); (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {}); });
+// Incrustado o a pantalla completa, la barra va encima de la imagen: aparece al mover el ratón o pulsar una tecla
+// y se oculta a los 2 s sin actividad, salvo con el ratón sobre ella.
+(() => {
+  const raiz = document.documentElement; let espera = 0, sobreBarra = false;
+  const mostrar = () => { raiz.classList.add('controles'); clearTimeout(espera); espera = setTimeout(() => { if (!sobreBarra) raiz.classList.remove('controles'); }, 2000); };
+  for (const ev of ['pointermove', 'pointerdown', 'keydown']) addEventListener(ev, mostrar);
+  $('bar').addEventListener('pointerenter', () => { sobreBarra = true; });
+  $('bar').addEventListener('pointerleave', () => { sobreBarra = false; mostrar(); });
+})();
+// Pantalla completa del reproductor entero, para que los controles sigan a mano (aparecen al mover el ratón).
+$('fs').addEventListener('click', () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())?.catch?.(() => {}); });
+document.addEventListener('fullscreenchange', () => ui());
 // scrubber (drag to scrub; paused scrubbing lands on exposures, like an animator's frame flip)
 (() => {
   const tr = $('track'); let drag = false, was = false;
@@ -905,9 +950,13 @@ addEventListener('keydown', ev => {
   DUR = acc; NF = Math.round(DUR * FPS);
   cv.width = W; cv.height = H; document.documentElement.style.setProperty('--ar', W / H);
   if (FORMAT.pixel) cv.style.imageRendering = 'pixelated';
+  // Con un estilo de fondo claro, la pantalla de inicio se aclara y el título pasa a tinta.
+  { const h = FORMAT.post.bg.replace('#', ''), [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); if (.2126 * r + .7152 * g + .0722 * b > 128) document.documentElement.classList.add('fondo-claro'); }
   const tr = $('track'); tr.style.gridTemplateColumns = SHOTS.map(s => `${s.t1 - s.t0}fr`).join(' ');
   SHOTS.forEach(s => { const el = document.createElement('span'); el.className = 'seg'; el.textContent = s.name; el.title = s.name; tr.insertBefore(el, $('head')); });
-  $('spec').textContent = `${+DUR.toFixed(2)} s · ${W}×${H} · ${FPS} fps · sound on`;
+  // El nombre de un plano solo se escribe si cabe entero; si no, queda en el title (al pasar el ratón).
+  new ResizeObserver(() => tr.querySelectorAll('.seg').forEach(el => { el.classList.remove('estrecho'); el.classList.toggle('estrecho', el.scrollWidth > el.clientWidth + 1); })).observe(tr);
+  $('spec').textContent = `${+DUR.toFixed(1)} s · con sonido`;
   if (EXPO === 1) $('sm').hidden = true;
   await document.fonts.ready;
   if (typeof KIT_READY !== 'undefined') await KIT_READY; // un kit que carga algo asíncrono (3b1b: MathJax) lo espera aquí, antes de build()
@@ -916,7 +965,7 @@ addEventListener('keydown', ev => {
   buildScore();
   const t = Q.get('t'), fr = Q.get('frame');
   if (Q.get('ui') === '0') document.documentElement.classList.add('bare');
-  seek(fr != null ? +fr : t != null ? +t * FPS : 0, false);
+  seek(fr != null ? +fr : t != null ? +t * FPS : FORMAT.poster != null ? Math.round(FORMAT.poster * FPS) : 0, false);
   film.ready = true; window.__READY = true;
   if (t != null || fr != null || Q.get('ui') === '0') { $('start').hidden = true; film.started = true; }
   requestAnimationFrame(tick);

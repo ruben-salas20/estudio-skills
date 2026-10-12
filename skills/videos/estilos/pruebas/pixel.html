@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Red neuronal en pixel</title>
+<title>Ordenamiento burbuja</title>
 <style>
 :root{--ground:#0b1517;--ink:#e7dec8;--muted:#8fa4a2;--accent:#d04b40;--line:rgba(231,222,200,.16);--line2:rgba(231,222,200,.42);color-scheme:dark}
 html,body{height:100%;margin:0;background:var(--ground);color:var(--ink)}
@@ -24,34 +24,44 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #track{flex:1 1 220px;position:relative;height:30px;display:grid;gap:3px;cursor:pointer;touch-action:none;user-select:none}
 #track .seg{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-top:2px solid var(--line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:6px}
-#track .seg.on{border-color:var(--accent);color:var(--ink)}
+#track .seg.on{border-color:var(--accent);color:var(--ink)}#track .seg.estrecho{color:transparent}
 #head{position:absolute;top:-5px;left:0;width:2px;height:12px;background:var(--ink);transform:translateX(-1px);pointer-events:none}
 #tc{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
 #hint{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
 kbd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;color:var(--ink)}
-#frame:fullscreen{width:100vw;height:100vh;border-radius:0}
+#bar button.ico{width:34px;height:34px;padding:0;display:grid;place-items:center}#bar button.ico svg{width:16px;height:16px}
+html.fondo-claro #start{color:#1B1F3B;background:radial-gradient(ellipse at center,rgba(255,255,255,.15),rgba(255,255,255,.6))}html.fondo-claro #start .ring{border-color:#1B1F3B;background:rgba(255,255,255,.55)}html.fondo-claro #start .name,html.fondo-claro #start .spec{color:#1B1F3B;text-shadow:0 1px 12px rgba(255,255,255,.8)}
 html.bare body{padding:0;gap:0}html.bare #bar,html.bare #hint{display:none}html.bare #frame{width:100vw;height:100vh;box-shadow:none;border-radius:0}
+html.incrustado body,html:fullscreen body{padding:0;gap:0}html.incrustado #hint,html:fullscreen #hint{display:none}html.incrustado #frame,html:fullscreen #frame{width:100vw;height:100vh;box-shadow:none;border-radius:0}
+html.incrustado #bar,html:fullscreen #bar{position:fixed;inset:auto 0 0 0;width:auto;padding:22px 12px 8px;background:linear-gradient(transparent,rgba(0,0,0,.75));opacity:0;transition:opacity .2s;z-index:5}
+html.controles #bar{opacity:1}html.incrustado:not(.controles) #frame,html:fullscreen:not(.controles) #frame{cursor:none}
 @media (max-width:640px){#bar button{padding:5px 10px;font-size:12px}#track{order:10;flex-basis:100%}}
 </style>
 </head>
 <body>
 <div id="frame">
-  <canvas id="film" aria-label="Red neuronal en pixel: prueba del estilo pixel: una red neuronal clasifica tres dígitos escritos a mano"></canvas>
-  <button id="start" aria-label="Play Red neuronal en pixel with sound"><span class="ring"><span class="tri"></span></span><span class="name">Red neuronal en pixel</span><span class="spec" id="spec"></span></button>
+  <canvas id="film" aria-label="Ordenamiento burbuja: cuatro barras se ordenan comparando vecinos; el mayor sube al final en cada pasada y termina cuando una pasada no cambia nada"></canvas>
+  <button id="start" aria-label="Reproducir Ordenamiento burbuja con sonido"><span class="ring"><span class="tri"></span></span><span class="name">Ordenamiento burbuja</span><span class="spec" id="spec"></span></button>
 </div>
-<div id="bar" role="toolbar" aria-label="Film controls">
-  <button id="pp" aria-pressed="false">Play</button>
-  <button id="rs">Restart</button>
-  <div id="track" aria-label="Scrub the film"><span id="head"></span></div>
+<div id="bar" role="toolbar" aria-label="Controles del vídeo">
+  <button id="pp" class="ico" aria-pressed="false" aria-label="Reproducir" title="Reproducir"></button>
+  <button id="rs" class="ico" aria-label="Reiniciar" title="Reiniciar"></button>
+  <div id="track" aria-label="Recorrer el vídeo"><span id="head"></span></div>
   <span id="tc"></span>
-  <button id="sm">Stop-motion · 12 poses/s</button>
-  <button id="snd">Sound off</button>
-  <button id="fs">Full screen</button>
+  <button id="sm" class="ico" aria-label="Stop-motion" title="Stop-motion"></button>
+  <button id="snd" class="ico" aria-label="Sonido apagado" title="Sonido apagado"></button>
+  <button id="fs" class="ico" aria-label="Pantalla completa" title="Pantalla completa"></button>
 </div>
-<p id="hint">Click the world to poke it, drag to blow on it · <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> one exposure · <kbd>S</kbd> stop-motion/smooth · <kbd>1</kbd>–<kbd>9</kbd> shots · <kbd>M</kbd> mute</p>
+<p id="hint"><kbd>Espacio</kbd> reproducir/pausar · <kbd>←</kbd><kbd>→</kbd> una pose · <kbd>S</kbd> stop-motion/fluido · <kbd>1</kbd>–<kbd>9</kbd> planos · <kbd>M</kbd> silenciar</p>
+<script>
+// Dentro de una nota (iframe) el vídeo ocupa todo el hueco y los controles aparecen encima al pasar el ratón.
+if (window.self !== window.top) document.documentElement.classList.add('incrustado');
+// Cualquier fallo se escribe encima del vídeo, para que salga en la captura de revisión.
+addEventListener('error', e => { const p = document.createElement('pre'); p.textContent = 'ERROR: ' + e.message + (e.lineno ? ' (línea ' + e.lineno + ')' : ''); p.style.cssText = 'position:fixed;inset:auto 0 0 0;margin:0;padding:12px;background:#000;color:#ff5555;font:16px monospace;z-index:99;white-space:pre-wrap'; document.body.append(p); });
+</script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-//  Red neuronal en pixel — a film drawn and scored entirely in code.
+//  Ordenamiento burbuja — a film drawn and scored entirely in code.
 //  No images, samples or libraries: every pixel and every sound is made here (a narration
 //  track, when there is one, is the only recorded audio). Size, frame rate and look come from
 //  FORMAT; the length is the sum of the shots. With expo > 1 puppets hold each pose for
@@ -60,13 +70,11 @@ html.bare body{padding:0;gap:0}html.bare #bar,html.bare #hint{display:none}html.
 "use strict";
 // ═══ TU PELÍCULA · FORMATO — size, frame rate, pose rate and post look (see MOTOR.md for the presets) ═══
 const FORMAT = {
-  w: 640, h: 360, fps: 60,
-  expo: 2,
+  w: 640, h: 360, fps: 60, expo: 2,
   post: { flicker: 0, grain: 0, vignette: 0, bg: '#06070d' },
-  ink: [6, 7, 13], light: [232, 238, 255],
-  paper: 0,
-  shadow: null,
-  pixel: true,
+  ink: [6, 7, 13], light: [232, 238, 255], paper: 0, shadow: null, pixel: true,
+  safe: null,
+  poster: 14.2,                              // el 4 ya fijo al final: la idea principal a la vista
 };
 const W = FORMAT.w, H = FORMAT.h, FPS = FORMAT.fps, EXPO = FORMAT.expo;
 let DUR = 0, NF = 0; // set at boot from the shots
@@ -304,6 +312,36 @@ function put(ctx, sp, x, y, rot = 0, sc = 1, { alpha = 1, flip = false, shadow =
     ctx.globalAlpha = alpha; ctx.drawImage(sp.s, ox, oy); ctx.restore();
   }
   ctx.save(); ctx.translate(x, y); if (rot) ctx.rotate(rot); ctx.scale(flip ? -k : k, k * sy); ctx.globalAlpha = alpha; ctx.drawImage(sp.c, ox, oy); ctx.restore();
+}
+
+// ── atajos de tiempo y cámara que casi todo plano necesita ──
+const lapse = (t, a, d) => clamp((t - a) / d, 0, 1);                    // 0 → 1 mientras t va de a a a + d
+const onFrame = (T, ev) => Math.round(T * FPS) === Math.round(ev * FPS); // true en el fotograma exacto del suceso ev (en step)
+const popIn = u => { u = clamp(u, 0, 1); const v = u - 1; return 1 + 2.93 * v * v * v + 1.93 * v * v; }; // escala de aparición: 0 → 1,12 → 1 dentro de u ∈ [0, 1]
+// Principios de animación (SKILL.md, Animación): llegar con sobrepaso, recorrer en arco, estirar sin cambiar de área.
+const llegar = (u, s = .08) => { u = clamp(u, 0, 1); return u < .75 ? (1 + s) * eio(u / .75) : 1 + s - s * eio((u - .75) / .25); }; // 0 → 1 + s (al 75 % del tiempo) → 1: arranca suave, se pasa y vuelve
+const arco = (a, b, u, h) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, k = 4 * h * u * (1 - u); return [lerp(a[0], b[0], u) + k * dy / l, lerp(a[1], b[1], u) - k * dx / l]; }; // de a a b por una curva que se separa h del recto en el centro: hacia arriba si va a la derecha; h < 0, al otro lado
+const estirar = k => [1 / k, k];   // [ancho, alto] con el área intacta: k > 1 estira en la dirección del movimiento, k < 1 aplasta
+function keyframes(K, t) { // [[t, v], ...] ordenados: valor interpolado linealmente en t
+  if (t <= K[0][0]) return K[0][1];
+  for (let i = 1; i < K.length; i++) if (t <= K[i][0]) return lerp(K[i - 1][1], K[i][1], (t - K[i - 1][0]) / (K[i][0] - K[i - 1][0]));
+  return K[K.length - 1][1];
+}
+// cámara que va de a = [x, y, z] a b en dur segundos: cam: camPath([1280, 720, 1], [1300, 700, 1.1], 2.5)
+const camPath = (a, b, dur, ease = eio) => st => { const u = ease(st / dur); return { x: lerp(a[0], b[0], u), y: lerp(a[1], b[1], u), z: lerp(a[2], b[2], u) }; };
+// plano sobre un decorado compartido: el decorado vive en tiempo global (T = t0 + st), así lo dibujado en un plano sigue en el siguiente.
+// set = { build(), reset(T0), step(T, dt), snap(), draw(ctx, cam, T, e), poke?(x, y) }; o = { name, dur, cam, energy, score?(t0) }
+function sharedShot(set, o) {
+  return {
+    ...o,
+    build() { if (!set._built) { set._built = true; set.build(); } },
+    reset() { set.reset(this.t0); },
+    step(dt, st) { set.step(this.t0 + st, dt); },
+    snap() { set.snap(); },
+    draw(ctx, st, sq, e, cam) { set.draw(ctx, cam, this.t0 + sq, e); },
+    score() { return o.score ? o.score.call(this, this.t0) : []; },
+    poke(x, y) { return set.poke ? set.poke(x, y) : false; },
+  };
 }
 
 // ── stop-motion clock helpers ───────────────────────────────────────────────
@@ -686,9 +724,9 @@ function compose(M) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TU PELÍCULA — solo esta sección cambia de un corto a otro.
+//  TU PELÍCULA — solo esta sección cambia de un vídeo a otro.
 //  Define aquí: marionetas (funciones que dibujan con g, se hornean con sprite()),
-//  MELODY + baseScore(), y los planos S1..Sn con la interfaz
+//  MUSIC + baseScore(), y los planos S1..Sn con la interfaz
 //  { name, dur, cam, build, reset, step, snap, draw, score, poke }, cada uno con SHOTS.push(...).
 //  t0/t1 se calculan solos a partir de dur, en el orden de SHOTS.
 //  Contrato completo en ../MOTOR.md; ejemplos resueltos en ../estilos/pruebas/.
@@ -813,13 +851,16 @@ const FONT57 = (() => {
 // ancho en pixeles de un texto a escala s (cada letra ocupa 5 + 1 de espacio)
 const ptextW = (str, s = 1, gap = 1) => Math.max(0, String(str).length * (5 + gap) - gap) * s;
 // texto pixel: escala entera; `led` deja una rejilla oscura entre pixeles (visor), `shade` aclara la fila de arriba
+// Mayúsculas con tilde, Ñ y Ü: la letra entera y el signo en dos filas por encima de la línea (filas −2 y −1).
+const SIGNOS57 = { 'Á': ['A', 0x02, 0x04], 'É': ['E', 0x02, 0x04], 'Í': ['I', 0x02, 0x04], 'Ó': ['O', 0x02, 0x04], 'Ú': ['U', 0x02, 0x04], 'Ñ': ['N', 0x0D, 0x12], 'Ü': ['U', 0x00, 0x0A] };
 function ptext(ctx, str, x, y, { col = C.pxWhite, s = 1, align = 'left', gap = 1, u = 1, led = false, shade = null, shadow = null } = {}) {
   str = String(str).toUpperCase(); const n = Math.ceil(str.length * clamp(u, 0, 1)), w = ptextW(str, s, gap);
   let X = (align === 'center' ? x - w / 2 : align === 'right' ? x - w : x) | 0; y |= 0;
   const blk = led && s > 2 ? s - 1 : s;
   for (let c = 0; c < n; c++) {
-    const g = FONT57[str[c]] || FONT57['?'];
-    for (let r = 0; r < 7; r++) for (let b = 0; b < 5; b++) if (g[r] >> (4 - b) & 1) {
+    const sg = SIGNOS57[str[c]], g = sg ? [sg[1], sg[2], ...FONT57[sg[0]]] : FONT57[str[c]] || FONT57['?'], r0 = sg ? -2 : 0;
+    for (let i = 0; i < g.length; i++) for (let b = 0; b < 5; b++) if (g[i] >> (4 - b) & 1) {
+      const r = i + r0;
       if (shadow) { ctx.fillStyle = shadow; ctx.fillRect(X + b * s + s, y + r * s + s, blk, blk); }
       ctx.fillStyle = shade && r === 0 ? shade : col; ctx.fillRect(X + b * s, y + r * s, blk, blk);
       if (led && s > 3) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(X + b * s, y + r * s, 1, 1); }
@@ -850,104 +891,210 @@ function strokeImage(n, strokes, { r = .085, seed = 1 } = {}) {
   }
   return img;
 }
-
 // KIT-FIN
 const SHOTS = [];
-// ═══ LA RED · un decorado compartido por los tres planos ═══
-const NET = {
-  X: [170, 258, 346, 436],
+// ═══ LA REPISA · decorado compartido: las cuatro barras, el marco y el panel viven en tiempo global ═══
+const FLOOR = 316, BW = 36, BY = 156, VH = 30, SX = [80, 150, 220, 290], PC = [115, 185, 255];
+const START = [3, 4, 1, 2];
+// cada suceso en segundos globales; los planos solo eligen qué tramo se ve
+const SWAPS = [{ a: 9.0, i: 1 }, { a: 13.0, i: 2 }, { a: 19.75, i: 0 }, { a: 23.25, i: 1 }]; // a = inicio de la anticipación
+const BRK = [{ t: 4.25, drop: 0 }, { t: 7.75, from: 0, to: 1, D: .5, arc: 10 }, { t: 11.75, from: 1, to: 2, D: .5, arc: 10 }, { t: 16.25, from: 2, to: 0, D: .75, arc: 22 }, { t: 22.25, from: 0, to: 1, D: .5, arc: 10 }, { t: 26.25, from: 1, to: 0, D: .5, arc: 10 }];
+const BRK_OUT = 30.5;
+const CMP = [{ t: 5.25, e: 7.75, i: 0, s: '<' }, { t: 8.75, e: 9.75, i: 1, s: '>' }, { t: 12.75, e: 13.75, i: 2, s: '>' }, { t: 17.75, e: 20.5, i: 0, s: '>' }, { t: 23.0, e: 24.0, i: 1, s: '>' }, { t: 27.25, e: 30.5, i: 0, s: '<' }];
+const LOCKS = [{ t: 14.0, k: 3 }, { t: 24.0, k: 2 }, { t: 30.5, k: 0 }, { t: 30.6, k: 1 }];
+const PASSES = [{ t: 4.25, n: 1 }, { t: 16.0, n: 2 }, { t: 26.0, n: 3 }];
+const HIST = [{ t: 14.25, arr: [3, 1, 2, 4], fix: 1 }, { t: 24.25, arr: [1, 2, 3, 4], fix: 2 }, { t: 30.75, arr: [1, 2, 3, 4], fix: 4 }];
+const LABELS = [
+  { t: 1.5, e: 4.0, s: '¿CÓMO SE ORDENAN?', x: 185 },
+  { t: 5.0, e: 7.5, s: 'COMPARA DOS VECINOS', x: PC[0] },
+  { t: 9.25, e: 11.5, s: 'SI ESTÁN MAL, CAMBIAN', x: PC[1] },
+  { t: 14.0, e: 16.0, s: 'MAYOR AL FINAL', x: SX[3] },
+  { t: 17.25, e: 19.5, s: 'OTRA PASADA, UNA MENOS', x: PC[0] },
+  { t: 20.0, e: 22.0, s: 'GANA EL MAYOR', x: PC[0] },
+  { t: 24.0, e: 26.0, s: 'EL 3 SE FIJA', x: SX[2] },
+  { t: 27.25, e: 30.0, s: 'NADA QUE CAMBIAR', x: PC[0] },
+  { t: 30.5, e: 33.5, s: 'SIN CAMBIOS: TERMINA', x: 185 },
+  { t: 37.0, e: 39.5, s: 'ORDENADA EN 3 PASADAS', x: 185 },
+];
+const RECAP = ['COMPARA VECINOS', 'SI ESTÁN MAL, CAMBIAN', 'EL MAYOR, AL FINAL', 'SIN CAMBIOS: TERMINA'], RECAP_T = 33.75;
+const WAVE_T = 36.75;
+// avance con sobrepaso: eio hasta 1,08 y vuelta a 1 en 0,15 s (acción continuada)
+function travel(T, a, D) { return T <= a ? 0 : llegar(lapse(T, a, D)); }   // llega con sobrepaso (motor: llegar)
+// aplastar o estirar sin cambiar de área: sy dado, sx = 1/sy
+function hopScale(T, a, D, stretch = 1.15) {
+  if (T < a) return 1;
+  if (T < a + .25) return 1 - .15 * eio((T - a) / .25);                    // anticipación: se encoge
+  const u = (T - a - .25) / D;
+  if (u < 1) return u < .3 ? lerp(.85, stretch, eio(u / .3)) : lerp(stretch, 1, eio((u - .3) / .7)); // despega estirado
+  const l = (T - a - .25 - D) / .3;                                         // aterriza aplastado y se pasa
+  return l >= 1 ? 1 : l < .4 ? lerp(.82, 1.07, eio(l / .4)) : lerp(1.07, 1, eio((l - .4) / .6));
+}
+function drawBar(ctx, v, cx, dy, sy, col, top, sx = 1 / sy) {
+  const w = Math.round(BW * sx), h = Math.round(v * VH * sy), x = Math.round(cx - w / 2), y = Math.round(FLOOR - h + dy);
+  prect(ctx, x, y, w, h, col); prect(ctx, x, y, w, 2, top);
+  ptext(ctx, v, Math.round(cx) - 5, FLOOR - 18 + Math.round(dy), { s: 2, col: C.pxWhite });
+}
+function bracketAt(T) {
+  if (T < BRK[0].t || T >= BRK_OUT + .5) return null;
+  let b = { x: PC[0], y: BY, vis: true, marks: false };
+  for (const k of BRK) {
+    if (T < k.t) break;
+    if (k.drop != null) {
+      if (T < k.t + .25) b = { x: PC[k.drop], y: BY, vis: false, marks: true }; // marca donde va a caer
+      else b = { x: PC[k.drop], y: BY - 30 * (1 - travel(T, k.t + .25, .5)), vis: true };
+    } else {
+      const dir = Math.sign(k.to - k.from);
+      if (T < k.t + .25) b = { x: PC[k.from] - 3 * dir * eio((T - k.t) / .25), y: BY, vis: true }; // se echa atrás
+      else { const u = clamp((T - k.t - .25) / k.D, 0, 1), s = travel(T, k.t + .25, k.D); b = { x: lerp(PC[k.from] - 3 * dir, PC[k.to], s), y: BY - k.arc * Math.sin(PI * u), vis: true }; }
+    }
+  }
+  if (T >= BRK_OUT) b.vis = Math.floor((T - BRK_OUT) * 12) % 2 === 1;
+  return b;
+}
+function drawBracket(ctx, b, col) {
+  const x0 = Math.round(b.x - 58), x1 = Math.round(b.x + 58), y = Math.round(b.y);
+  prect(ctx, x0, y, x1 - x0, 2, col); prect(ctx, x0, y, 2, 8, col); prect(ctx, x1 - 2, y, 2, 8, col);
+}
+const pairAt = T => { const b = bracketAt(T); if (!b) return -1; let i = -1; for (const k of BRK) if (T >= k.t) i = k.drop != null ? k.drop : (T >= k.t + .25 + k.D * .5 ? k.to : k.from); return i; };
+function stateAt(T) {
+  const arr = START.slice(); let anim = null, swaps = 0, pass = 0;
+  for (const p of PASSES) if (T >= p.t) pass = p.n;
+  for (const s of SWAPS) {
+    if (T >= s.a + .75) { const pp = PASSES.filter(p => p.t <= s.a).length; if (pp === pass) swaps++; }
+    if (T >= s.a + 1.05) { [arr[s.i], arr[s.i + 1]] = [arr[s.i + 1], arr[s.i]]; continue; }
+    if (T >= s.a) anim = s;
+    break;
+  }
+  const locked = [false, false, false, false], lockT = [0, 0, 0, 0];
+  for (const L of LOCKS) if (T >= L.t) { locked[L.k] = true; lockT[L.k] = L.t; }
+  return { arr, anim, swaps, pass, locked, lockT };
+}
+const HILO = {
   build() {
-    if (this.bg) return;
-    const L0 = []; for (let i = 0; i < 8; i++) L0.push(22 + i * 15); for (let i = 0; i < 8; i++) L0.push(165 + i * 15);
-    const L1 = [], L2 = []; for (let i = 0; i < 16; i++) { L1.push(22 + i * 17); L2.push(22 + i * 17); }
-    const L3 = []; for (let i = 0; i < 10; i++) L3.push(70 + i * 18);
-    this.Y = [L0, L1, L2, L3];
-    // sitios de la imagen 28×28 que representan los 16 nodos de entrada visibles (el resto de los 784 van en los puntos)
-    this.SAMPLE = Array.from({ length: 16 }, (_, k) => [6 + (k % 4) * 5, 5 + Math.floor(k / 4) * 6]);
     const c = mk(W, H), g = g2(c); g.imageSmoothingEnabled = false;
-    for (let l = 0; l < 3; l++) for (const ya of this.Y[l]) for (const yb of this.Y[l + 1]) pline(g, this.X[l] + 5, ya, this.X[l + 1] - 5, yb, C.pxLine, { dot: 3, phase: (ya + yb) % 3 });
-    for (let l = 0; l < 4; l++) for (const y of this.Y[l]) { pcircle(g, this.X[l], y, 4, C.px0, true); pcircle(g, this.X[l], y, 4, C.pxNode); }
-    for (const y of [140, 146, 152]) pset(g, this.X[0], y, C.pxNodeL);
-    for (let d = 0; d < 10; d++) { ptext(g, d, this.X[3] + 10, this.Y[3][d] - 3, { col: C.pxNodeL }); pline(g, this.X[3] + 18, this.Y[3][d], 520, this.Y[3][d], C.px2, { dot: 2 }); }
-    ppanel(g, 12, 128, 90, 90); ppanel(g, 536, 116, 70, 80);
-    for (let d = 0; d < 10; d++) pline(g, 522, this.Y[3][d], 560, 222, C.px2, { dot: 4 });
+    ptext(g, 'ORDENAMIENTO BURBUJA', 20, 20, { s: 2, col: C.pxNodeL });
+    pline(g, 30, FLOOR, 340, FLOOR, C.pxLine);
+    for (const x of SX) pline(g, x - BW / 2, FLOOR + 3, x + BW / 2 - 1, FLOOR + 3, C.pxNode, { dot: 2 });
+    ppanel(g, 372, 36, 252, 176);
+    ptext(g, 'PASADA', 390, 50, { col: C.pxNodeL }); ptext(g, 'CAMBIOS', 500, 50, { col: C.pxNodeL });
+    pline(g, 384, 98, 612, 98, C.pxLine, { dot: 2 });
+    ptext(g, 'TRAS CADA PASADA', 390, 106, { col: C.pxNodeL });
     this.bg = c;
   },
-};
-// dígitos escritos a mano: trazos en coordenadas 0–1 que strokeImage convierte en una imagen 28×28
-const DIGITS = {
-  2: [[[.3, .32], [.4, .22], [.55, .2], [.66, .28], [.66, .42], [.55, .56], [.4, .68], [.3, .78], [.45, .77], [.72, .78]]],
-  8: [[[.5, .48], [.36, .4], [.34, .28], [.44, .2], [.58, .21], [.64, .3], [.6, .4], [.5, .48], [.36, .58], [.34, .7], [.44, .8], [.6, .8], [.67, .7], [.62, .57], [.5, .48]]],
-  4: [[[.56, .18], [.42, .38], [.32, .56], [.52, .56], [.72, .55]], [[.6, .3], [.6, .55], [.6, .82]]],
-};
-// una pasada por la red: activaciones inventadas pero coherentes (cada dígito enciende su propio grupo de neuronas)
-function makePass(d, img) {
-  const R = rng(100 + d), a0 = NET.SAMPLE.map(([i, j]) => { let m = 0; for (let y = -1; y <= 1; y++) for (let x = -1; x <= 1; x++) m = Math.max(m, img[clamp(j + y, 0, 27) * 28 + clamp(i + x, 0, 27)]); return m; });
-  const pick = (n, k) => { const s = new Set(); while (s.size < k) s.add(Math.floor(R() * n)); return [...s]; };
-  const on1 = pick(16, 5), on2 = pick(16, 5), a1 = Array(16).fill(0), a2 = Array(16).fill(0), a3 = Array(10).fill(0);
-  on1.forEach((i, k) => a1[i] = .55 + .45 * R()); on2.forEach(i => a2[i] = .55 + .45 * R());
-  for (let o = 0; o < 10; o++) a3[o] = o === d ? .93 + .05 * R() : R() < .25 ? .05 + .12 * R() : .01;
-  const E = [[], [], []];
-  a0.forEach((v, i) => { if (v > .3) pick(16, 3).filter(j => a1[j] > 0 || R() < .3).forEach(j => E[0].push([i, j, R() < .8 ? 1 : -1])); });
-  on1.forEach(i => on2.filter(() => R() < .6).forEach(j => E[1].push([i, j, R() < .75 ? 1 : -1])));
-  on2.forEach(i => { E[2].push([i, d, 1]); const o = Math.floor(R() * 10); if (o !== d) E[2].push([i, o, -1]); });
-  return { a: [a0, a1, a2, a3], E, d, conf: Math.round(a3[d] * 100) };
-}
-// tiempos dentro del plano: la imagen entra, y la señal cruza una capa por tiempo (bpm 120)
-const T_IN = [0, .5], T_LAYER = [.5, 1.0, 1.5, 2.0], T_EDGE = [[.5, .9], [1.0, 1.4], [1.5, 1.9]], T_OUT = 2.25;
-const pixelShot = (d, energy) => ({
-  name: `Dígito ${d}`, dur: 3, energy,
-  cam: () => ({ x: W / 2, y: H / 2 - 20, z: 1 }), // la red se compone 20 px más abajo del centro
-  build() { NET.build(); this.img = strokeImage(28, DIGITS[d], { r: .07, seed: d }); this.pass = makePass(d, this.img); },
   reset() {}, step() {}, snap() {},
-  draw(ctx, st, sq, e, cam) {
-    setCam(ctx, cam, 1); ctx.drawImage(NET.bg, 0, 0);
-    ptext(ctx, 'RED NEURONAL · 784-16-16-10', 12, -8, { col: C.pxNodeL });
-    const P = this.pass, [X, Y] = [NET.X, NET.Y];
-    // entrada: el dígito aparece pixel a pixel, con ruido magenta alrededor
-    const rev = inv(T_IN[0], T_IN[1], sq);
-    pimage(ctx, this.img, 28, 15, 131, 3, { reveal: rev, seed: d });
-    for (let k = 0; k < 40; k++) { const i = Math.floor(hash(k, d, 1) * 28), j = Math.floor(hash(k, d, 2) * 28); if (this.img[j * 28 + i] < .1 && hash(k, d, 3) < rev * .9 && hash(k, e, 4) < .8) prect(ctx, 15 + i * 3, 131 + j * 3, 3, 3, k % 3 ? C.pxMagD : C.pxMag); }
-    // conexiones encendidas: la señal viaja (pulso blanco) y deja la línea teñida
-    for (let l = 0; l < 3; l++) {
-      const [t0, t1] = T_EDGE[l], u = inv(t0, t1, sq); if (u <= 0) continue;
-      for (const [i, j, s] of P.E[l]) {
-        const x0 = X[l] + 5, y0 = Y[l][i], x1 = X[l + 1] - 5, y1 = Y[l + 1][j], col = s > 0 ? (u < 1 ? C.pxMag : C.pxMagD) : (u < 1 ? C.pxCyan : C.pxCyanD);
-        pline(ctx, x0, y0, x1, y1, col, { u });
-        if (u < 1) { const [px, py] = plerp(x0, y0, x1, y1, u); prect(ctx, px - 1, py - 1, 2, 2, C.pxWhite); }
+  draw(ctx, cam, T, e) {
+    setCam(ctx, cam, 1); ctx.drawImage(this.bg, 0, 0);
+    const S = stateAt(T), br = bracketAt(T), pair = pairAt(T);
+    const steps = T >= 4.25 && T < 30.5; // durante los pasos, lo que no está en el marco se atenúa
+    // casillas de la zona fija
+    S.locked.forEach((on, k) => { if (on) prect(ctx, SX[k] - BW / 2, FLOOR + 2, BW, 3, C.pxCyan); });
+    // gancho: las casillas parpadean antes de que crezcan las barras
+    if (T >= .2 && T < .5) for (const x of SX) { prect(ctx, x - BW / 2, FLOOR + 2, BW, 3, C.pxNodeL); dfill(ctx, x - BW / 2, FLOOR - 24, BW, 24, C.pxLine, .5 * lapse(T, .2, .3)); }
+    const cmp = CMP.find(c => T >= c.t && T < c.e);
+    // barras
+    const order = [];
+    S.arr.forEach((v, k) => order.push({ v, k }));
+    if (S.anim) order.sort((a, b) => (a.k === S.anim.i) - (b.k === S.anim.i)); // la que salta por encima se pinta la última
+    for (const { v, k } of order) {
+      let cx = SX[k], dy = 0, sy = 1;
+      // tras aterrizar, la barra ya ocupa su casilla nueva aunque aún se esté asentando
+      const q = S.anim && T >= S.anim.a + .75 && (k === S.anim.i || k === S.anim.i + 1) ? (k === S.anim.i ? k + 1 : k - 1) : k;
+      // aparición en el gancho, escalonada 0,1 s
+      let sx; if (T < 1.5) { const u = (T - .5 - k * .1) / .5; if (u <= 0) continue; sy = popIn(u); sx = 1; } // crece desde el suelo: el ancho no cambia
+      if (S.anim && (k === S.anim.i || k === S.anim.i + 1)) {
+        const a = S.anim.a, left = k === S.anim.i, s = travel(T, a + .25, .5), u = clamp((T - a - .25) / .5, 0, 1);
+        const from = SX[k], to = SX[left ? k + 1 : k - 1];
+        const lean = T < a + .25 ? (left ? -2 : 2) * eio((T - a) / .25) : (left ? -2 : 2) * (1 - eio(u));
+        cx = lerp(from, to, s) + lean; dy = -(left ? 12 : 6) * Math.sin(PI * u);
+        sy = hopScale(T, a, .5, left ? 1.08 : 1.12);
       }
+      // final: ola de saltos de izquierda a derecha
+      if (T >= WAVE_T) { const a = WAVE_T + k * .1, u = clamp((T - a - .25) / .5, 0, 1); dy = -14 * Math.sin(PI * u); sy = hopScale(T, a, .5); }
+      if (S.locked[q] && T - S.lockT[q] < .3 && q === k) sy = 1 + .1 * Math.sin(PI * eio((T - S.lockT[q]) / .3));
+      let col = C.pxNode, top = C.pxNodeL;
+      const inPair = pair >= 0 && (k === pair || k === pair + 1);
+      if (steps && !inPair && !S.locked[q]) { col = C.px2; top = C.pxLine; }
+      if (inPair && T >= 5.0) { col = C.pxNodeL; top = C.pxWhite; }
+      if (cmp && cmp.s === '>' && k === cmp.i) { col = C.pxMag; top = C.pxWhite; }
+      if (S.anim && k === S.anim.i) { col = C.pxMag; top = C.pxWhite; }
+      if (S.locked[q]) { col = C.pxCyanD; top = C.pxCyan; }
+      drawBar(ctx, v, cx, dy, sy, col, top, sx);
+      if (S.locked[q] && T - S.lockT[q] < .6) dglow(ctx, cx, FLOOR - v * VH, 14, C.pxCyan, .9 * (1 - (T - S.lockT[q]) / .6));
     }
-    // nodos: se encienden con halo tramado cuando llega la señal
-    for (let l = 0; l < 4; l++) {
-      const on = sq >= T_LAYER[l], k = on ? Math.exp(-(sq - T_LAYER[l]) * 3) : 0;
-      Y[l].forEach((y, i) => {
-        const a = P.a[l][i]; if (!on || a < .05) return;
-        const col = l === 3 ? (i === d ? C.pxCyan : C.pxMagD) : a > .5 ? C.pxMag : C.pxMagD;
-        dglow(ctx, X[l], y, 9, col, .55 * a + .5 * k);
-        pcircle(ctx, X[l], y, 3, col, true); pcircle(ctx, X[l], y, 4, a > .5 ? C.pxWhite : col);
-      });
+    // marco de comparación
+    if (br) {
+      if (br.marks) { const x0 = PC[0] - 58, x1 = PC[0] + 58; for (const x of [x0, x1 - 6]) prect(ctx, x, BY, 6, 2, C.pxCyan); prect(ctx, x0, BY, 2, 8, C.pxCyan); prect(ctx, x1 - 2, BY, 2, 8, C.pxCyan); }
+      if (br.vis) drawBracket(ctx, br, C.pxCyan);
     }
-    // salidas: barras de probabilidad
-    if (sq >= T_LAYER[3]) P.a[3].forEach((a, o) => { const w = Math.round(38 * a * eo(inv(T_LAYER[3], T_LAYER[3] + .3, sq))); if (w > 0) { prect(ctx, X[3] + 20, Y[3][o] - 1, w, 3, o === d ? C.pxCyan : C.pxMagD); if (o === d) prect(ctx, X[3] + 20, Y[3][o] - 1, w, 1, C.pxWhite); } if (o === d) ptext(ctx, o, X[3] + 10, Y[3][o] - 3, { col: C.pxWhite }); });
-    // predicción: visor LED y rombo que late
-    if (sq >= T_OUT) {
-      const blink = sq < T_OUT + .25 ? Math.floor((sq - T_OUT) * 16) % 2 : 0;
-      if (!blink) ptext(ctx, d, 551, 128, { s: 8, led: true, col: C.pxCyan, shade: C.pxWhite });
-      pdiamond(ctx, 560, 222, 3 + (Math.floor(sq * 4) % 2), C.pxMag); pdiamond(ctx, 560, 222, 1, C.pxWhite, true);
-      ptext(ctx, `PREDICCIÓN: ${d} · ${P.conf}%`, 12, 318, { col: C.pxCyan, u: inv(T_OUT, T_OUT + .5, sq) });
-    } else ptext(ctx, sq < T_IN[1] ? 'LEYENDO IMAGEN...' : 'CALCULANDO...', 12, 318, { col: C.pxNodeL, u: inv(0, .3, sq) });
+    // signo de la comparación, encima del marco
+    if (cmp) {
+      const u = (T - cmp.t) / .25, show = u >= 1 || Math.floor(u * 4) % 2 === 0;
+      if (show) ptext(ctx, cmp.s, PC[cmp.i] - 5, BY - 20, { s: 2, col: cmp.s === '<' ? C.pxCyan : C.pxMag });
+      if (cmp.s === '<' && T >= cmp.t + .25) ptext(ctx, 'OK', PC[cmp.i] + 10, BY - 16, { col: C.pxCyan });
+    }
+    // rótulo del plano: se teclea en 0,25 s pegado a lo que nombra
+    const L = LABELS.find(l => T >= l.t && T < l.e);
+    if (L) { const w = ptextW(L.s, 2), x = clamp(Math.round(L.x - w / 2), 16, 352 - w); ptext(ctx, L.s, x, 112, { s: 2, col: C.pxWhite, u: inv(L.t, L.t + .25, T), shadow: C.px0 }); }
+    // panel: pasada y cambios, con un pulso blanco al cambiar (acción secundaria)
+    if (S.pass) {
+      const pt = PASSES.find(p => p.n === S.pass).t, lastSwap = SWAPS.map(s => s.a + .75).filter(t => t <= T).pop() || -9;
+      ptext(ctx, S.pass, 390, 64, { s: 3, col: T - pt < .25 ? C.pxWhite : C.pxCyan });
+      let blink = false;
+      if (T >= 30.25 && T < 30.5) blink = Math.floor((T - 30.25) * 16) % 2 === 1; // anticipación del final: el 0 parpadea
+      if (!blink) ptext(ctx, S.swaps, 500, 64, { s: 3, col: T - lastSwap < .25 || (T >= 30.5 && T < 31) ? C.pxWhite : S.swaps ? C.pxMag : C.pxCyan });
+    } else { ptext(ctx, '-', 390, 64, { s: 3, col: C.pxLine }); ptext(ctx, '-', 500, 64, { s: 3, col: C.pxLine }); }
+    // historial: mini barras tras cada pasada, que aparecen pixel a pixel
+    HIST.forEach((h, r) => {
+      if (T < h.t) return; const rev = inv(h.t, h.t + .4, T), y0 = 142 + r * 22;
+      ptext(ctx, r + 1, 390, y0 - 7, { col: C.pxNodeL });
+      h.arr.forEach((v, k) => { const fixed = k >= 4 - h.fix, x = 410 + k * 10, hh = v * 4; for (let j = 0; j < hh; j++) for (let i = 0; i < 6; i++) if (hash(i + x, j, r) <= rev) pset(ctx, x + i, y0 - j, fixed ? C.pxCyan : C.pxNodeL); });
+    });
+    // síntesis: segundo panel con los nombres de cada paso
+    if (T >= RECAP_T - .25) {
+      const rev = inv(RECAP_T - .25, RECAP_T, T);
+      if (rev < 1) dfill(ctx, 372, 222, 252, 92, C.px1, rev); else ppanel(ctx, 372, 222, 252, 92);
+      RECAP.forEach((s, k) => { const t = RECAP_T + k * .25; if (T < t) return; pdiamond(ctx, 392, 238 + k * 20, 2, k === 3 ? C.pxCyan : C.pxMag, true); ptext(ctx, s, 402, 235 + k * 20, { col: C.pxWhite, u: inv(t, t + .3, T) }); });
+    }
   },
-  score() {
-    const t = this.t0, ev = [];
-    for (let k = 0; k < 8; k++) ev.push({ t: t + k * .0625, k: 'noise', v: .5, dur: .03, hz: 5000 + k * 400 });
-    T_LAYER.forEach((tl, l) => chordAt(MUSIC, t + tl, 6).forEach((n, i) => ev.push({ t: t + tl + i * .04, k: 'chip', n, v: .55, dur: .08, wave: 'square' })));
-    ev.push({ t: t + T_OUT, k: 'chip', n: chordAt(MUSIC, t + T_OUT, 6)[2], v: .8, dur: .3, wave: 'pulse' });
-    return ev;
-  },
-  poke() { return false; },
-});
-SHOTS.push(pixelShot(2, .45), pixelShot(8, .6), pixelShot(4, .75));
-const MUSIC = { bpm: 120, key: 'A', mode: 'minor', prog: [1, 6, 3, 7], inst: { pad: null, bass: 'chipbass', keys: 'chip', lead: 'chip', perc: 'noise' }, seed: 3 };
+};
+// ═══ sonido: cada suceso visible, en su instante ═══
+function hiNote(t, i) { const ch = chordAt(MUSIC, t, 6); return ch[i % ch.length]; }
+function allEvents() {
+  const ev = [], chip = (t, i, o = {}) => ev.push({ t, k: 'chip', n: hiNote(t, i), v: .5, dur: .08, wave: 'square', ...o }), burst = (t, n = 4, v = .4) => { for (let k = 0; k < n; k++) ev.push({ t: t + k * .0625, k: 'noise', v, dur: .03, hz: 4500 + k * 500 }); };
+  burst(.25, 4, .3);
+  for (let k = 0; k < 4; k++) chip(.5 + k * .1, k);
+  for (const l of LABELS) burst(l.t, 3, .25);
+  ev.push({ t: 4.25, k: 'noise', v: .3, dur: .04, hz: 3000 });
+  for (const b of BRK) { const land = b.drop != null ? b.t + .75 : b.t + .25 + b.D; chip(land, 0, { wave: 'triangle', v: .45 }); }
+  for (const c of CMP) { chip(c.t, c.s === '<' ? 2 : 1, { wave: c.s === '<' ? 'pulse' : 'square', v: .55 }); if (c.s === '<') chip(c.t + .25, 2, { v: .45, dur: .12 }); }
+  for (const s of SWAPS) { chip(s.a + .25, 0, { wave: 'triangle', v: .5, dur: .12 }); ev.push({ t: s.a + .75, k: 'noise', v: .5, dur: .05, hz: 1800 }); }
+  for (const L of LOCKS) [0, 1, 2].forEach(i => chip(L.t + i * .04, i, { wave: 'pulse', v: .55 }));
+  for (const p of PASSES.slice(1)) chip(p.t, 1, { v: .4 });
+  for (const h of HIST) burst(h.t, 6, .3);
+  ev.push({ t: 30.25, k: 'noise', v: .35, dur: .04, hz: 3000 });
+  burst(RECAP_T - .25, 4, .3);
+  RECAP.forEach((s, k) => chip(RECAP_T + k * .25, k, { v: .45 }));
+  for (let k = 0; k < 4; k++) { chip(WAVE_T + .25 + k * .1, k, { wave: 'pulse', v: .5 }); ev.push({ t: WAVE_T + .75 + k * .1, k: 'noise', v: .35, dur: .04, hz: 1800 }); }
+  return ev;
+}
+let EV = null;
+const shotScore = t0 => { EV = EV || allEvents(); const s = SHOTS.find(x => x.t0 === t0); return EV.filter(e => e.t >= t0 && e.t < s.t0 + s.dur); };
+const CAM = () => ({ x: W / 2, y: H / 2, z: 1 });
+const P = (name, dur, energy) => sharedShot(HILO, { name, dur, energy, cam: CAM, score: shotScore });
+SHOTS.push(
+  P('Gancho', 4.0, .25),
+  P('Compara', 3.5, .4),
+  P('Intercambia', 4.0, .5),
+  P('Mayor al final', 4.5, .7),
+  P('Otra pasada', 3.5, .45),
+  P('Gana el mayor', 2.5, .5),
+  P('El 3 se fija', 4.0, .55),
+  P('Nada que cambiar', 4.0, .45),
+  P('Termina', 3.5, .65),
+  P('Resumen', 3.0, .5),
+  P('Respuesta', 3.0, .6),
+);
+const MUSIC = { bpm: 120, key: 'A', mode: 'minor', prog: [1, 6, 3, 7], inst: { pad: null, bass: 'chipbass', keys: 'chip', lead: 'chip', perc: 'noise' }, seed: 5 };
 function baseScore() { return [{ t: 0, k: 'bed', kind: 'studio', dur: DUR }, ...compose(MUSIC)]; }
 // VOZ-INICIO — narration clips, written by incrustar-voz.cjs: { t: seconds, v: gain, b64: base64 of a wav/mp3 }
 const VOICE = [];
@@ -1068,12 +1215,31 @@ function tick(now) {
 // ── UI ──
 const $ = id => document.getElementById(id);
 const tcFmt = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}.${String(Math.floor((t % 1) * 100)).padStart(2, '0')}`;
+// Iconos de la barra: trazos de 24×24 en el color del texto; el nombre va en aria-label y title.
+const ICONOS = {
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+  pausa: '<path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z" fill="currentColor"/>',
+  reiniciar: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  sonido: '<path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  mudo: '<path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  poses: '<rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 5v14M15 5v14" stroke="currentColor" stroke-width="2"/>',
+  fluido: '<path d="M3 12c3-6 6-6 9 0s6 6 9 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  ampliar: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  salir: '<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+function icono(id, nombre, etiqueta) {
+  const b = $(id);
+  if (b.dataset.icono !== nombre) { b.dataset.icono = nombre; b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS[nombre]}</svg>`; }
+  b.setAttribute('aria-label', etiqueta); b.title = etiqueta;
+}
 function ui() {
+  icono('rs', 'reiniciar', 'Reiniciar');
   const t = Math.max(0, film.f) / FPS;
   $('tc').textContent = `${tcFmt(t)} / ${tcFmt(DUR)}`; $('head').style.left = `${(t / DUR) * 100}%`;
-  $('pp').textContent = film.playing ? 'Pause' : 'Play'; $('pp').setAttribute('aria-pressed', film.playing);
-  $('sm').textContent = film.smooth ? `Smooth · ${FPS} poses/s` : `Stop-motion · ${+(FPS / EXPO).toFixed(1)} poses/s`;
-  $('snd').textContent = !film.audio ? 'Sound off' : film.muted ? 'Muted' : 'Sound on';
+  icono('pp', film.playing ? 'pausa' : 'play', film.playing ? 'Pausar' : 'Reproducir'); $('pp').setAttribute('aria-pressed', film.playing);
+  icono('sm', film.smooth ? 'fluido' : 'poses', film.smooth ? `Fluido · ${FPS} poses/s` : `Stop-motion · ${+(FPS / EXPO).toFixed(1)} poses/s`);
+  icono('snd', !film.audio || film.muted ? 'mudo' : 'sonido', !film.audio ? 'Sonido apagado' : film.muted ? 'Silenciado' : 'Sonido activado');
+  icono('fs', document.fullscreenElement ? 'salir' : 'ampliar', document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa');
   document.querySelectorAll('#track .seg').forEach((el, i) => el.classList.toggle('on', i === film.shotIdx));
 }
 function startFilm() { $('start').hidden = true; film.audio = true; film.started = true; seek(0, false); play(true); }
@@ -1082,7 +1248,18 @@ $('pp').addEventListener('click', () => { if (!film.started) return startFilm();
 $('rs').addEventListener('click', () => { if (!film.started) return startFilm(); seek(0); if (!film.playing) play(true); });
 $('sm').addEventListener('click', () => { film.smooth = !film.smooth; seek(film.f); });
 $('snd').addEventListener('click', () => { if (!film.audio) { film.audio = true; film.muted = false; if (film.playing) audioFrom(film.clock); } else { film.muted = !film.muted; if (SND) SND.master.gain.setTargetAtTime(film.muted ? 0 : .92, AC.currentTime, .03); } ui(); });
-$('fs').addEventListener('click', () => { const el = $('frame'); (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {}); });
+// Incrustado o a pantalla completa, la barra va encima de la imagen: aparece al mover el ratón o pulsar una tecla
+// y se oculta a los 2 s sin actividad, salvo con el ratón sobre ella.
+(() => {
+  const raiz = document.documentElement; let espera = 0, sobreBarra = false;
+  const mostrar = () => { raiz.classList.add('controles'); clearTimeout(espera); espera = setTimeout(() => { if (!sobreBarra) raiz.classList.remove('controles'); }, 2000); };
+  for (const ev of ['pointermove', 'pointerdown', 'keydown']) addEventListener(ev, mostrar);
+  $('bar').addEventListener('pointerenter', () => { sobreBarra = true; });
+  $('bar').addEventListener('pointerleave', () => { sobreBarra = false; mostrar(); });
+})();
+// Pantalla completa del reproductor entero, para que los controles sigan a mano (aparecen al mover el ratón).
+$('fs').addEventListener('click', () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())?.catch?.(() => {}); });
+document.addEventListener('fullscreenchange', () => ui());
 // scrubber (drag to scrub; paused scrubbing lands on exposures, like an animator's frame flip)
 (() => {
   const tr = $('track'); let drag = false, was = false;
@@ -1130,17 +1307,22 @@ addEventListener('keydown', ev => {
   DUR = acc; NF = Math.round(DUR * FPS);
   cv.width = W; cv.height = H; document.documentElement.style.setProperty('--ar', W / H);
   if (FORMAT.pixel) cv.style.imageRendering = 'pixelated';
+  // Con un estilo de fondo claro, la pantalla de inicio se aclara y el título pasa a tinta.
+  { const h = FORMAT.post.bg.replace('#', ''), [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); if (.2126 * r + .7152 * g + .0722 * b > 128) document.documentElement.classList.add('fondo-claro'); }
   const tr = $('track'); tr.style.gridTemplateColumns = SHOTS.map(s => `${s.t1 - s.t0}fr`).join(' ');
   SHOTS.forEach(s => { const el = document.createElement('span'); el.className = 'seg'; el.textContent = s.name; el.title = s.name; tr.insertBefore(el, $('head')); });
-  $('spec').textContent = `${+DUR.toFixed(2)} s · ${W}×${H} · ${FPS} fps · sound on`;
+  // El nombre de un plano solo se escribe si cabe entero; si no, queda en el title (al pasar el ratón).
+  new ResizeObserver(() => tr.querySelectorAll('.seg').forEach(el => { el.classList.remove('estrecho'); el.classList.toggle('estrecho', el.scrollWidth > el.clientWidth + 1); })).observe(tr);
+  $('spec').textContent = `${+DUR.toFixed(1)} s · con sonido`;
   if (EXPO === 1) $('sm').hidden = true;
   await document.fonts.ready;
+  if (typeof KIT_READY !== 'undefined') await KIT_READY; // un kit que carga algo asíncrono (3b1b: MathJax) lo espera aquí, antes de build()
   if (VOICE.length) { const O = new OfflineAudioContext(1, 1, 48000); for (const c of VOICE) { const b = atob(c.b64), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); c.buf = await O.decodeAudioData(u.buffer); } }
   for (const s of SHOTS) s.build();
   buildScore();
   const t = Q.get('t'), fr = Q.get('frame');
   if (Q.get('ui') === '0') document.documentElement.classList.add('bare');
-  seek(fr != null ? +fr : t != null ? +t * FPS : 0, false);
+  seek(fr != null ? +fr : t != null ? +t * FPS : FORMAT.poster != null ? Math.round(FORMAT.poster * FPS) : 0, false);
   film.ready = true; window.__READY = true;
   if (t != null || fr != null || Q.get('ui') === '0') { $('start').hidden = true; film.started = true; }
   requestAnimationFrame(tick);
@@ -1148,7 +1330,7 @@ addEventListener('keydown', ev => {
 // test hooks (headless capture + review)
 window.__film = {
   seek: f => { film.seeking = true; simTo(f); film.seeking = false; render(); return film.f; },
-  time: () => { const t0 = performance.now(); render(); return performance.now() - t0; },
+  time: () => { const t0 = performance.now(); render(); ctx.getImageData(0, 0, 1, 1); return performance.now() - t0; }, // espera a la GPU: mide el fotograma entero
   wav: () => renderWav(), score: () => SCORE, info: () => ({ f: film.f, shot: film.shot && film.shot.name, smooth: film.smooth }),
 };
 </script>

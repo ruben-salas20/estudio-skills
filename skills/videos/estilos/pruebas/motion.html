@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Ciclo del agua · motion</title>
+<title>La insulina y la glucosa</title>
 <style>
 :root{--ground:#0b1517;--ink:#e7dec8;--muted:#8fa4a2;--accent:#d04b40;--line:rgba(231,222,200,.16);--line2:rgba(231,222,200,.42);color-scheme:dark}
 html,body{height:100%;margin:0;background:var(--ground);color:var(--ink)}
@@ -24,34 +24,44 @@ canvas{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #track{flex:1 1 220px;position:relative;height:30px;display:grid;gap:3px;cursor:pointer;touch-action:none;user-select:none}
 #track .seg{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-top:2px solid var(--line);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:6px}
-#track .seg.on{border-color:var(--accent);color:var(--ink)}
+#track .seg.on{border-color:var(--accent);color:var(--ink)}#track .seg.estrecho{color:transparent}
 #head{position:absolute;top:-5px;left:0;width:2px;height:12px;background:var(--ink);transform:translateX(-1px);pointer-events:none}
 #tc{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
 #hint{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
 kbd{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px;color:var(--ink)}
-#frame:fullscreen{width:100vw;height:100vh;border-radius:0}
+#bar button.ico{width:34px;height:34px;padding:0;display:grid;place-items:center}#bar button.ico svg{width:16px;height:16px}
+html.fondo-claro #start{color:#1B1F3B;background:radial-gradient(ellipse at center,rgba(255,255,255,.15),rgba(255,255,255,.6))}html.fondo-claro #start .ring{border-color:#1B1F3B;background:rgba(255,255,255,.55)}html.fondo-claro #start .name,html.fondo-claro #start .spec{color:#1B1F3B;text-shadow:0 1px 12px rgba(255,255,255,.8)}
 html.bare body{padding:0;gap:0}html.bare #bar,html.bare #hint{display:none}html.bare #frame{width:100vw;height:100vh;box-shadow:none;border-radius:0}
+html.incrustado body,html:fullscreen body{padding:0;gap:0}html.incrustado #hint,html:fullscreen #hint{display:none}html.incrustado #frame,html:fullscreen #frame{width:100vw;height:100vh;box-shadow:none;border-radius:0}
+html.incrustado #bar,html:fullscreen #bar{position:fixed;inset:auto 0 0 0;width:auto;padding:22px 12px 8px;background:linear-gradient(transparent,rgba(0,0,0,.75));opacity:0;transition:opacity .2s;z-index:5}
+html.controles #bar{opacity:1}html.incrustado:not(.controles) #frame,html:fullscreen:not(.controles) #frame{cursor:none}
 @media (max-width:640px){#bar button{padding:5px 10px;font-size:12px}#track{order:10;flex-basis:100%}}
 </style>
 </head>
 <body>
 <div id="frame">
-  <canvas id="film" aria-label="Ciclo del agua · motion: prueba del estilo motion"></canvas>
-  <button id="start" aria-label="Play Ciclo del agua · motion with sound"><span class="ring"><span class="tri"></span></span><span class="name">Ciclo del agua · motion</span><span class="spec" id="spec"></span></button>
+  <canvas id="film" aria-label="La insulina y la glucosa: cómo la insulina hace que la glucosa entre en una célula de músculo y qué falla en la diabetes tipo 2"></canvas>
+  <button id="start" aria-label="Reproducir La insulina y la glucosa con sonido"><span class="ring"><span class="tri"></span></span><span class="name">La insulina y la glucosa</span><span class="spec" id="spec"></span></button>
 </div>
-<div id="bar" role="toolbar" aria-label="Film controls">
-  <button id="pp" aria-pressed="false">Play</button>
-  <button id="rs">Restart</button>
-  <div id="track" aria-label="Scrub the film"><span id="head"></span></div>
+<div id="bar" role="toolbar" aria-label="Controles del vídeo">
+  <button id="pp" class="ico" aria-pressed="false" aria-label="Reproducir" title="Reproducir"></button>
+  <button id="rs" class="ico" aria-label="Reiniciar" title="Reiniciar"></button>
+  <div id="track" aria-label="Recorrer el vídeo"><span id="head"></span></div>
   <span id="tc"></span>
-  <button id="sm">Stop-motion · 12 poses/s</button>
-  <button id="snd">Sound off</button>
-  <button id="fs">Full screen</button>
+  <button id="sm" class="ico" aria-label="Stop-motion" title="Stop-motion"></button>
+  <button id="snd" class="ico" aria-label="Sonido apagado" title="Sonido apagado"></button>
+  <button id="fs" class="ico" aria-label="Pantalla completa" title="Pantalla completa"></button>
 </div>
-<p id="hint">Click the world to poke it, drag to blow on it · <kbd>Space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> one exposure · <kbd>S</kbd> stop-motion/smooth · <kbd>1</kbd>–<kbd>9</kbd> shots · <kbd>M</kbd> mute</p>
+<p id="hint"><kbd>Espacio</kbd> reproducir/pausar · <kbd>←</kbd><kbd>→</kbd> una pose · <kbd>S</kbd> stop-motion/fluido · <kbd>1</kbd>–<kbd>9</kbd> planos · <kbd>M</kbd> silenciar</p>
+<script>
+// Dentro de una nota (iframe) el vídeo ocupa todo el hueco y los controles aparecen encima al pasar el ratón.
+if (window.self !== window.top) document.documentElement.classList.add('incrustado');
+// Cualquier fallo se escribe encima del vídeo, para que salga en la captura de revisión.
+addEventListener('error', e => { const p = document.createElement('pre'); p.textContent = 'ERROR: ' + e.message + (e.lineno ? ' (línea ' + e.lineno + ')' : ''); p.style.cssText = 'position:fixed;inset:auto 0 0 0;margin:0;padding:12px;background:#000;color:#ff5555;font:16px monospace;z-index:99;white-space:pre-wrap'; document.body.append(p); });
+</script>
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-//  Ciclo del agua · motion — a film drawn and scored entirely in code.
+//  La insulina y la glucosa — a film drawn and scored entirely in code.
 //  No images, samples or libraries: every pixel and every sound is made here (a narration
 //  track, when there is one, is the only recorded audio). Size, frame rate and look come from
 //  FORMAT; the length is the sum of the shots. With expo > 1 puppets hold each pose for
@@ -61,11 +71,11 @@ html.bare body{padding:0;gap:0}html.bare #bar,html.bare #hint{display:none}html.
 // ═══ TU PELÍCULA · FORMATO — size, frame rate, pose rate and post look (see MOTOR.md for the presets) ═══
 const FORMAT = {
   w: 2560, h: 1440, fps: 60,
-  expo: 1,
-  post: { flicker: 0, grain: 0, vignette: 0, bg: '#F3EEE4' },
-  ink: [27, 31, 59], light: [255, 255, 255],
-  paper: 0,
-  shadow: null,
+  expo: 1, post: { flicker: 0, grain: 0, vignette: 0, bg: '#F3EEE4' },
+  ink: [27, 31, 59], light: [255, 255, 255], paper: 0, shadow: null,
+  pixel: false,
+  poster: 25.9,                            // las tres puertas abiertas y la glucosa ya dentro: la idea a la vista
+  safe: null,
 };
 const W = FORMAT.w, H = FORMAT.h, FPS = FORMAT.fps, EXPO = FORMAT.expo;
 let DUR = 0, NF = 0; // set at boot from the shots
@@ -308,7 +318,11 @@ function put(ctx, sp, x, y, rot = 0, sc = 1, { alpha = 1, flip = false, shadow =
 // ── atajos de tiempo y cámara que casi todo plano necesita ──
 const lapse = (t, a, d) => clamp((t - a) / d, 0, 1);                    // 0 → 1 mientras t va de a a a + d
 const onFrame = (T, ev) => Math.round(T * FPS) === Math.round(ev * FPS); // true en el fotograma exacto del suceso ev (en step)
-const popIn = u => u <= 0 ? 0 : u < 1 ? eo(u) * 1.12 : 1 + .12 * Math.exp(-(u - 1) * 3) * Math.cos((u - 1) * 8); // escala de aparición con rebote
+const popIn = u => { u = clamp(u, 0, 1); const v = u - 1; return 1 + 2.93 * v * v * v + 1.93 * v * v; }; // escala de aparición: 0 → 1,12 → 1 dentro de u ∈ [0, 1]
+// Principios de animación (SKILL.md, Animación): llegar con sobrepaso, recorrer en arco, estirar sin cambiar de área.
+const llegar = (u, s = .08) => { u = clamp(u, 0, 1); return u < .75 ? (1 + s) * eio(u / .75) : 1 + s - s * eio((u - .75) / .25); }; // 0 → 1 + s (al 75 % del tiempo) → 1: arranca suave, se pasa y vuelve
+const arco = (a, b, u, h) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, k = 4 * h * u * (1 - u); return [lerp(a[0], b[0], u) + k * dy / l, lerp(a[1], b[1], u) - k * dx / l]; }; // de a a b por una curva que se separa h del recto en el centro: hacia arriba si va a la derecha; h < 0, al otro lado
+const estirar = k => [1 / k, k];   // [ancho, alto] con el área intacta: k > 1 estira en la dirección del movimiento, k < 1 aplasta
 function keyframes(K, t) { // [[t, v], ...] ordenados: valor interpolado linealmente en t
   if (t <= K[0][0]) return K[0][1];
   for (let i = 1; i < K.length; i++) if (t <= K[i][0]) return lerp(K[i - 1][1], K[i][1], (t - K[i - 1][0]) / (K[i][0] - K[i - 1][0]));
@@ -711,12 +725,12 @@ function compose(M) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  TU PELÍCULA — solo esta sección cambia de un corto a otro.
+//  TU PELÍCULA — solo esta sección cambia de un vídeo a otro.
 //  Define aquí: marionetas (funciones que dibujan con g, se hornean con sprite()),
-//  MELODY + baseScore(), y los planos S1..Sn con la interfaz
+//  MUSIC + baseScore(), y los planos S1..Sn con la interfaz
 //  { name, dur, cam, build, reset, step, snap, draw, score, poke }, cada uno con SHOTS.push(...).
 //  t0/t1 se calculan solos a partir de dur, en el orden de SHOTS.
-//  Contrato completo en ../MOTOR.md; ejemplos resueltos en ../estilos/pruebas/.
+//  Contrato completo en MOTOR.md de la skill; ejemplos resueltos en estilos/pruebas/.
 // ═══════════════════════════════════════════════════════════════════════════
 // KIT-INICIO — pega aquí estilos/<estilo>.js si el estilo trae kit
 // ═══ KIT · motion graphics plano ═══
@@ -753,67 +767,408 @@ function kinetic(ctx, str, x, y, t0, t, { size = 110, col = C.ink, weight = 800,
   words.forEach((w, i) => { const u = clamp((t - t0 - i * stagger) / .35, 0, 1); if (u > 0) { ctx.globalAlpha = eo(u); drawText(ctx, w, cx, y + (1 - ease.back(u)) * size * .5, { size, weight, col, align: 'left', font }); } cx += ws[i] + sp; });
   ctx.restore();
 }
-
 // KIT-FIN
 const SHOTS = [];
-// ═══ PLANO 1 · Evaporación ═══
-const S1 = {
-  name: 'Evaporación', dur: 2.5, energy: .45,
-  cam(st) { const u = eio(st / 2.5); return { x: W / 2, y: H / 2, z: lerp(1, 1.06, u) }; },
+// ═══ LA INSULINA · decorado compartido: vaso, páncreas, célula y paneles viven en tiempo global ═══
+// Todo cae en la rejilla del MUSIC (110 bpm): E8 es una corchea y E16 una semicorchea.
+const E8 = 30 / 110, E16 = E8 / 2;
+// [nombre, corcheas, energy]
+const SH = [['Gancho', 15, .25], ['La membrana frena', 15, .4], ['Insulina', 13, .45], ['Receptor', 13, .5], ['Señal', 15, .5], ['Puertas GLUT4', 13, .55], ['La glucosa entra', 13, .75],
+  ['Tipo 2', 15, .4], ['Resistencia', 15, .5], ['Pocas puertas', 15, .55], ['Páncreas', 15, .65], ['Resumen', 13, .5], ['Respuesta', 15, .6]];
+const T0 = []; { let a = 0; for (const s of SH) { T0.push(a); a += s[1] * E8; } }
+const at = (i, n) => T0[i] + n * E8;                         // segundo global de la corchea n del plano i
+const shotOf = T => { let i = 0; for (let k = 0; k < T0.length; k++) if (T >= T0[k] - 1e-6) i = k; return i; };
+const CUT = T0[7], REC = T0[11];                             // corte a tipo 2 y vuelta al estado sano en la síntesis
+
+// ── geometría del mundo (2560 × 1440) ──
+const VX0 = 400, VX1 = 1760, VY0 = 130, VY1 = 370, MOUTH = [400, 250], PANC = [318, 222], PAN_BASE = [195, 330];
+const MY = 690, MB = 740, MC = 715, RX = 330, CUP = [RX, 632], PY = 900, VY = 1030, VR = 64, DX = [700, 1100, 1500], PILE = 1290;
+const GL = [[500, 200], [620, 300], [760, 200], [900, 300], [1040, 200], [1180, 300], [1320, 200], [1460, 300], [1600, 200], [1680, 300],
+  [600, 550], [760, 628], [940, 550], [1060, 628], [1240, 550], [1400, 628], [1560, 550], [1660, 628]];
+const GX = [[690, 250], [970, 250], [1250, 250], [1530, 250], [850, 550], [1150, 550]];   // glucosa de más en tipo 2
+const BOUNCER = 14, BOUNCE_TO = [1320, 560];
+const INS = [[480, 272], [1110, 250], [1390, 250], [1660, 225]];
+const INS2 = [[480, 272], [562, 242], [830, 250], [900, 192], [1180, 192], [1460, 195]];
+const GA = i => at(0, 2) + i * .05;                          // llegada de cada glucosa en el gancho
+const REL1 = at(2, 2), REL2 = at(10, 2), TIRED = at(10, 9);
+const BIND = [at(3, 2), at(7, 2)];
+const SIG = at(4, 2), WEAK = at(8, 2);
+const SIGP = [[RX, 800], [RX, PY], [DX[2], PY]], SIGL = (PY - 800) + (DX[2] - RX);
+const BR = DX.map(x => (PY - 800) + (x - RX));               // distancia por el camino hasta cada rama
+const branchT = d => SIG + E8 + 3 * E8 * BR[d] / SIGL;       // la señal llega a la rama d
+const RISE1 = DX.map((_, d) => at(5, 2) + d * E16), RISE2 = at(9, 2);
+const ENT1 = [[10, 0, 0], [13, 1, 0], [15, 2, 0], [11, 0, 1], [12, 1, 1], [16, 2, 1]].map(([g, d, w]) => ({ g, d, w, a: at(6, 1 + 2 * w) + d * E16 }));
+const ENT2 = [{ g: 11, d: 0, w: 0, a: at(9, 6) }, { g: 10, d: 0, w: 1, a: at(9, 8) }];
+const crossT = E => E.a + 2.75 * E8;                         // instante en que cruza la puerta
+const landT = E => E.a + 4.5 * E8;
+const LAB = [[0, 7, '¿Cómo entra la glucosa?', 'low'], [1, 4.5, 'La membrana la frena', 'M'], [2, 4, 'El páncreas suelta insulina', 'I'], [3, 5, 'Se une al receptor', 'M'],
+  [4, 3, 'Una señal cruza la célula', 'low'], [5, 5, 'Suben puertas GLUT4', 'M'], [6, 4, 'La glucosa entra', 'I'], [7, 5, 'Tipo 2: aún se une', 'M'],
+  [8, 6, 'Resistencia a la insulina', 'low'], [9, 5, 'Pocas puertas: glucosa alta', 'I'], [10, 4, 'El páncreas no da abasto', 'I'], [12, 1, 'La insulina le abre puertas', 'low']]
+  .map(([s, n, str, z]) => ({ t: at(s, n), e: T0[s] + SH[s][1] * E8, str, z }));
+const ZONE = { low: [910, 1190, 'center'], M: [450, 832, 'left'], I: [70, 440, 'left'] };
+const LEGEND = [['Glucosa', at(0, 7)], ['Insulina', at(2, 4)], ['Receptor', at(3, 5)], ['Señal', at(4, 3)], ['Puerta GLUT4', at(5, 5)]];
+const RECAP = ['La insulina se une', 'Señal en la célula', 'Suben las GLUT4', 'Entra la glucosa'], RECAP_T = k => at(11, 2 + 2 * k);
+const BADGE = [[RX + 100, 600], [900, 962], [1190, 630], [575, 1290]];
+const T2L = ['Tipo 2: señal débil', 'y pocas puertas'], T2_T = k => at(12, 6 + k), GHOST = d => at(12, 6) + (d - 1) * E16;
+const MIST = [[980, 520, 380, 0], [2400, 725, 300, 1.7], [120, 560, 250, 3.1], [1600, 40, 230, 4.2], [1300, 1450, 280, 5.3]];
+
+// ── piezas: cada una se reconoce por su silueta ──
+// cuerpo plano con sombra plana hacia abajo; k estira a lo largo de dir (la dirección del movimiento) sin cambiar el área
+function body(ctx, x, y, o, path, col) {
+  const { k = 1, dir = 0, s = 1, a = 1, sh = 12 } = o, [sx, sy] = estirar(k);
+  if (a <= 0 || s <= 0) return;
+  ctx.save(); ctx.globalAlpha = a;
+  for (const pass of sh ? [0, 1] : [1]) {
+    ctx.save(); ctx.translate(x, y + (pass ? 0 : sh)); ctx.rotate(dir); ctx.scale(sx * s, sy * s); ctx.rotate(-dir);
+    path(ctx); ctx.fillStyle = pass ? col : 'rgba(27,31,59,.13)'; ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+}
+// glucosa: el anillo hexagonal de seis lados
+function hexP(g, r = 40) {
+  const v = [...Array(6)].map((_, i) => [r * Math.cos(i * PI / 3 + PI / 6), r * Math.sin(i * PI / 3 + PI / 6)]);
+  g.beginPath(); g.moveTo((v[5][0] + v[0][0]) / 2, (v[5][1] + v[0][1]) / 2);
+  for (let i = 0; i < 6; i++) { const p = v[i], q = v[(i + 1) % 6]; g.arcTo(p[0], p[1], q[0], q[1], r * .28); }
+  g.closePath();
+}
+// insulina: dos cadenas (A y B) unidas por dos puentes
+function insP(g) { g.beginPath(); g.roundRect(-30, -21, 56, 17, 8.5); g.roundRect(-36, 4, 72, 17, 8.5); g.rect(-17, -6, 9, 12); g.rect(10, -6, 9, 12); }
+// páncreas: órgano alargado y lobulado, de cabeza ancha a cola fina; anclado abajo
+const PC = t => { const a = [-112, -58], m = [10, -112], b = [146, -128], v = 1 - t; return [v * v * a[0] + 2 * v * t * m[0] + t * t * b[0], v * v * a[1] + 2 * v * t * m[1] + t * t * b[1]]; };
+const PR = t => lerp(62, 22, t ** .8);
+const PN = t => { const p = PC(clamp(t - .01, 0, 1)), q = PC(clamp(t + .01, 0, 1)), l = Math.hypot(q[0] - p[0], q[1] - p[1]); return [-(q[1] - p[1]) / l, (q[0] - p[0]) / l]; };
+const PLOBES = [];
+for (let i = 0; i <= 28; i++) { const t = i / 28; PLOBES.push([...PC(t), PR(t)]); }
+for (let i = 0; i <= 10; i++) for (const sg of [-1, 1]) { const t = i / 10, [x, y] = PC(t), [nx, ny] = PN(t), r = PR(t); PLOBES.push([x + sg * nx * r * .88, y + sg * ny * r * .88, r * .32]); }
+const ISLETS = [[-120, -70], [-80, -40], [-60, -95], [-10, -70], [40, -110], [90, -112]];
+function pancP(g) { g.beginPath(); for (const [x, y, r] of PLOBES) { g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU); } }
+function isletP(g) { g.beginPath(); for (const [x, y] of ISLETS) { g.moveTo(x + 10, y); g.arc(x, y, 10, 0, TAU); } }
+const DUCT = [...Array(21)].map((_, i) => PC(.08 + .88 * i / 20));
+// vesícula: burbuja con el transportador GLUT4 dentro
+function vesBubbleP(g) { g.beginPath(); g.arc(0, 0, VR, 0, TAU); }
+function glutP(g, h = 70) { g.beginPath(); g.roundRect(-34, -h / 2, 20, h, 10); g.roundRect(14, -h / 2, 20, h, 10); }
+// puerta GLUT4 en la membrana: el mismo transportador, ahora de lado a lado
+function doorP(g) { g.beginPath(); g.roundRect(-48, -62, 22, 124, 11); g.roundRect(26, -62, 22, 124, 11); }
+// receptor: dos brazos en U por fuera, tallo que cruza la membrana y dos pies por dentro
+function recArmsP(g, open) {
+  g.beginPath();
+  for (const sgn of [-1, 1]) { g.save(); g.translate(sgn * 50, 10); g.rotate(sgn * open * .2); g.roundRect(-11, -100, 22, 104, 11); g.restore(); }
+  g.roundRect(-62, -2, 124, 22, 11);
+}
+function recStemP(g) { g.beginPath(); g.roundRect(-11, 10, 22, 80, 10); g.moveTo(-4, 92); g.arc(-22, 92, 18, 0, TAU); g.moveTo(40, 92); g.arc(22, 92, 18, 0, TAU); }
+
+const dirOf = (f, u) => { const p = f(clamp(u - .01, 0, 1)), q = f(clamp(u + .01, 0, 1)); return Math.atan2(q[1] - p[1], q[0] - p[0]) - PI / 2; };
+// recorrido en arco con llegada que se pasa y vuelve; devuelve posición, estirado y dirección
+function travel(a, b, u, h, kmax = 1.3) {
+  const f = v => arco(a, b, llegar(v, .06), h);
+  return { p: f(u), k: 1 + (kmax - 1) * Math.sin(PI * clamp(u / .8, 0, 1)), dir: dirOf(f, u) };
+}
+
+// glucosa que entra por su puerta: se agacha, salta en arco a la puerta, se estira para pasar y cae al montón
+function entryPose(E, b, T) {
+  const a = E.a, pile = [DX[E.d] - 40 + 80 * E.w, PILE], top = [DX[E.d], 628], below = [DX[E.d], 802];
+  if (T < a) return null;
+  if (T < a + E8) { const u = eio((T - a) / E8); return { p: [b[0], b[1] + 6 * u], k: 1 - .22 * u, dir: 0 }; }                     // se agacha
+  if (T < a + 2.5 * E8) { const u = (T - a - E8) / (1.5 * E8), f = v => arco([b[0], b[1] + 6], top, eio(v), 60); return { p: f(u), k: 1 + .25 * Math.sin(PI * u), dir: dirOf(f, u) }; }
+  if (T < a + 3 * E8) { const u = eio((T - a - 2.5 * E8) / (.5 * E8)); return { p: [top[0], lerp(top[1], below[1], u)], k: 1.45, dir: 0 }; } // se estrecha para pasar
+  if (T < landT(E)) { const u = (T - a - 3 * E8) / (1.5 * E8); return { p: [lerp(below[0], pile[0], u), lerp(below[1], pile[1], u * u)], k: 1.45 - .2 * u, dir: Math.atan2(pile[1] - below[1], pile[0] - below[0]) - PI / 2 }; }
+  const u = lapse(T, landT(E), .3);                                                                                                  // aplastada al tocar y rebote
+  return { p: pile, k: u < .25 ? .65 : .65 + .35 * llegar((u - .25) / .75, .12), dir: 0, sitY: true, done: u >= 1 };
+}
+function hookPose(i, b, T) {
+  const a = GA(i); if (T < a) return null;
+  const u = lapse(T, a, 2 * E8); if (u >= 1) return { p: b, k: 1, dir: 0, s: 1 };
+  const r = travel(MOUTH, b, u, i < 10 ? -50 : 90); return { ...r, s: popIn(lapse(T, a, .2)) };
+}
+function bouncePose(b, T) {
+  const a = at(1, 2), hit = a + 2.5 * E8;
+  if (T < a) return null;
+  if (T < a + E8) { const u = eio((T - a) / E8); return { p: [b[0], b[1] - 28 * u], k: 1 - .3 * u, dir: 0 }; }
+  if (T < hit) { const u = (T - a - E8) / (1.5 * E8); return { p: [b[0], lerp(b[1] - 28, MY - 30, u * u)], k: .7 + .65 * u, dir: 0 }; }    // cae acelerando, estirada
+  if (T < hit + .1) return { p: [b[0], MY - 24], k: .6, dir: 0 };                                                                    // aplastada contra la membrana
+  const u = lapse(T, hit + .1, 2 * E8);
+  if (u < 1) return travel([b[0], MY - 30], BOUNCE_TO, u, 90, 1.2);
+  return { p: BOUNCE_TO, k: 1, dir: 0 };
+}
+
+function glucoseValue(T) {
+  if (T >= REC) return 100;
+  if (T >= CUT) { let v = 230; for (const E of ENT2) v -= 8 * eio(lapse(T, crossT(E), .25)); return v; }
+  let v = 90; for (let i = 0; i < 18; i++) v += 58 / 18 * eio(lapse(T, GA(i) + 1.5 * E8, .3));
+  for (const E of ENT1) v -= 8 * eio(lapse(T, crossT(E), .25));
+  return v;
+}
+const vx = v => 1860 + clamp(v / 300, 0, 1) * 610;
+const ring = (ctx, x, y, T, t, { r0 = 40, r1 = 130, col = C.mint, d = .45 } = {}) => {
+  const u = lapse(T, t, d); if (u <= 0 || u >= 1) return;
+  ctx.save(); ctx.globalAlpha = 1 - u; ctx.strokeStyle = col; ctx.lineWidth = 10 * (1 - u) + 2; ctx.beginPath(); ctx.arc(x, y, lerp(r0, r1, eo(u)), 0, TAU); ctx.stroke(); ctx.restore();
+};
+const txt = (ctx, s, x, y, o) => drawText(ctx, s, x, y, { font: FONTS.display, weight: 800, col: C.ink, align: 'left', ...o });
+
+const HILO = {
+  // el decorado fijo se pinta en vivo: son pocas formas planas, y un lienzo de 2560 × 1440 copiado en cada fotograma cuesta más (~30 ms)
   build() {},
+  paint(g) {
+    g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+    // vaso sanguíneo en corte: plasma claro, pared de arriba entera, la de abajo con poros, y la boca abierta en cada extremo
+    g.fillStyle = tone(C.coral, .78); g.fillRect(VX0, 154, VX1 - VX0, 192);
+    flat(g, q => rrect(q, VX0, VY0, VX1 - VX0, 24, 12), C.coral, { sh: 10 });
+    for (let x = VX0; x < VX1; x += 220) flat(g, q => rrect(q, x, VY1 - 24, Math.min(180, VX1 - x), 24, 12), C.coral, { sh: 10 });
+    for (const x of [VX0, VX1]) { flat(g, q => { q.beginPath(); q.ellipse(x, 250, 50, 120, 0, 0, TAU); }, C.coral, { sh: 10 }); g.beginPath(); g.ellipse(x, 250, 30, 98, 0, 0, TAU); g.fillStyle = tone(C.coral, -.28); g.fill(); }
+    // célula de músculo: fibra larga con estrías y núcleos en el borde; la membrana es su cara de arriba
+    const cellP = q => rrect(q, 60, MY, VX1 - 60, 1400 - MY, 70);
+    flat(g, cellP, C.white, { sh: 16 });
+    g.save(); cellP(g); g.clip();
+    g.fillStyle = tone(C.mist, .55); for (let x = 96; x < VX1; x += 84) g.fillRect(x, MB, 30, 700);
+    g.fillStyle = tone(C.mist, -.06); g.fillRect(60, MY, VX1 - 60, MB - MY);
+    g.fillStyle = tone(C.mist, -.22); for (let x = 66; x < VX1; x += 22) for (const y of [MY + 9, MB - 9]) { g.beginPath(); g.arc(x, y, 8, 0, TAU); g.fill(); }
+    g.restore();
+    for (const y of [1040, 1290]) flat(g, q => { q.beginPath(); q.ellipse(190, y, 84, 26, 0, 0, TAU); }, tone(C.mist, -.1), { sh: 6 });
+    // rótulos fijos del decorado
+    const cap = { size: 60, col: tone(C.ink, .3) };
+    txt(g, 'Páncreas', 195, 100, { ...cap, align: 'center' });
+    txt(g, 'Vaso sanguíneo', 1080, 92, { ...cap, align: 'center' });
+    txt(g, 'Célula de músculo', 1730, 1362, { ...cap, align: 'right' });
+    // paneles: glucosa en sangre y piezas
+    flat(g, q => rrect(q, 1810, 130, 710, 560, 44), C.white, { sh: 16 });
+    flat(g, q => rrect(q, 1810, 760, 710, 640, 44), C.white, { sh: 16 });
+    txt(g, 'Glucosa en sangre', 1860, 200, { size: 56, col: tone(C.ink, .3) });
+    g.fillStyle = tone(C.mist, .2); rrect(g, 1860, 450, 610, 40, 20); g.fill();
+    g.fillStyle = tone(C.mint, .6); g.fillRect(vx(70), 450, vx(140) - vx(70), 40);
+    txt(g, 'normal', (vx(70) + vx(140)) / 2, 528, { size: 44, col: tone(C.mint, -.25), align: 'center' });
+    txt(g, '0', 1860, 528, { size: 40, col: tone(C.ink, .45) }); txt(g, '300', 2470, 528, { size: 40, col: tone(C.ink, .45), align: 'right' });
+    g.restore();
+  },
   reset() {}, step() {}, snap() {},
-  draw(ctx, st, sq, e, cam) {
-    setCam(ctx, cam, 1); ctx.fillStyle = C.bg; ctx.fillRect(-200, -200, W + 400, H + 400);
-    for (const [x, y, r] of [[300, 300, 220], [1250, 180, 120], [2350, 900, 260], [520, 820, 90]]) { ctx.fillStyle = C.mist; ctx.beginPath(); ctx.arc(x + Math.sin(sq + x) * 20, y, r * (.9 + .1 * Math.sin(sq * 2 + y)), 0, TAU); ctx.fill(); }
-    // sol
-    const s = life(sq, .3125), sx = 1900, sy = 430;
-    ctx.save(); ctx.translate(sx, sy); ctx.rotate(sq * .6); ctx.scale(s, s);
-    for (let i = 0; i < 12; i++) { ctx.rotate(TAU / 12); flat(ctx, g => rrect(g, 190, -18, 90, 36, 18), C.sun, { sh: 0 }); }
-    flat(ctx, g => { g.beginPath(); g.arc(0, 0, 150, 0, TAU); }, C.sun); ctx.restore();
-    // agua: ola que respira
-    const wave = g => { g.beginPath(); g.moveTo(-200, H + 200); for (let x = -200; x <= W + 200; x += 20) g.lineTo(x, 1080 + Math.sin(x * .006 + sq * 3) * 26); g.lineTo(W + 200, H + 200); g.closePath(); };
-    flat(ctx, wave, C.blue, { sh: -14, sa: .08 });
-    // gotas de vapor: se sueltan una por nota y suben
-    [.625, .9375, 1.25, 1.5625].forEach((t0, i) => {
-      if (sq < t0) return; const u = (sq - t0) / 1.4, x = 700 + i * 260, y = 1060 - eo(u) * 700, a = 1 - inv(.7, 1, u), sc = ease.back(clamp((sq - t0) / .25, 0, 1));
-      ctx.globalAlpha = a; ctx.save(); ctx.translate(x + Math.sin(sq * 4 + i) * 20, y); ctx.scale(sc, sc);
-      flat(ctx, g => { g.beginPath(); g.moveTo(0, -60); g.bezierCurveTo(40, -10, 44, 40, 0, 44); g.bezierCurveTo(-44, 40, -40, -10, 0, -60); }, '#9DB8FF', { sh: 10 }); ctx.restore(); ctx.globalAlpha = 1;
-      lineOn(ctx, [[x, 1060], [x, y + 60]], clamp(u * 2, 0, 1) * (1 - inv(.6, 1, u)), { col: '#9DB8FF', w: 8 });
-    });
-    kinetic(ctx, 'El sol evapora el agua', 860, 330, .9375, sq, { size: 120, align: 'center' });
-  },
-  score() { const acc = t => ({ t, k: 'synth', n: chordAt(MUSIC, t, 5)[2], v: .45, dur: .3 }); return [{ t: .3125, k: 'pop', v: 1, f: 700 }, acc(.3125), ...[.625, .9375, 1.25, 1.5625].flatMap((t, i) => [{ t, k: 'pop', v: .55, f: 950 + i * 110, pan: -.4 + i * .25 }, acc(t)]), { t: .9375, k: 'whoosh', dur: .5, p0: -.4, p1: .4, f0: 500, f1: 2000, v: .25 }]; },
-  poke() { return false; },
-};
-// ═══ PLANO 2 · Lluvia ═══
-const S2 = {
-  name: 'Lluvia', dur: 2.5, energy: .6, DROPS: [[900, .625], [1180, .78], [1460, .9375], [1040, 1.1], [1320, 1.25], [1600, 1.4], [980, 1.5625], [1260, 1.72], [1540, 1.875]],
-  cam(st) { const u = eio(st / 2.5); return { x: W / 2, y: H / 2, z: lerp(1.06, 1.0, u) }; },
-  build() {}, reset() {}, step() {}, snap() {},
-  hit(t0) { return t0 + Math.sqrt((1180 - 560) / 3000); },
-  draw(ctx, st, sq, e, cam) {
-    setCam(ctx, cam, 1); ctx.fillStyle = C.bg; ctx.fillRect(-200, -200, W + 400, H + 400);
-    for (const [x, y, r] of [[300, 300, 220], [1250, 180, 120], [2350, 900, 260], [520, 820, 90]]) { ctx.fillStyle = C.mist; ctx.beginPath(); ctx.arc(x + Math.sin(sq + x) * 20, y, r * (.9 + .1 * Math.sin(sq * 2 + y)), 0, TAU); ctx.fill(); }
-    flat(ctx, g => rrect(g, -200, 1180, W + 400, 600, 0), C.mint, { sh: -14, sa: .08 });
-    // nube
-    const s = life(sq, .3125);
-    ctx.save(); ctx.translate(1250, 470); ctx.scale(s, s);
-    flat(ctx, g => { g.beginPath(); for (const [x, y, r] of [[-260, 40, 120], [-90, -40, 170], [120, -10, 150], [290, 50, 110]]) { g.moveTo(x + r, y); g.arc(x, y, r, 0, TAU); } g.roundRect(-380, 40, 780, 120, 60); }, C.white); ctx.restore();
-    // gotas y salpicaduras
-    for (const [x, t0] of this.DROPS) {
-      if (sq < t0) continue; const dt = sq - t0, y = 560 + 1500 * dt * dt, th = this.hit(t0);
-      if (sq < th) flat(ctx, g => rrect(g, x - 14, y - 60, 28, 84, 14), C.blue, { sh: 0 });
-      else { const u = clamp((sq - th) / .35, 0, 1); ctx.strokeStyle = C.blue; ctx.globalAlpha = 1 - u; ctx.lineWidth = 8; ctx.beginPath(); ctx.ellipse(x, 1180, 20 + u * 90, 6 + u * 20, 0, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
+  draw(ctx, cam, T, e) {
+    setCam(ctx, cam, 1);
+    const s = shotOf(T), st = T - T0[s], ph = T < CUT ? 'sano' : T < REC ? 't2' : 'fin';
+    // fondo: círculos de niebla que respiran
+    ctx.fillStyle = C.mist;
+    for (const [x, y, r, p] of MIST) { ctx.beginPath(); ctx.arc(x, y, r * (1 + .05 * Math.sin(TAU * T / 6.5 + p)), 0, TAU); ctx.fill(); }
+    this.paint(ctx);
+    // glóbulos rojos que pasan (flujo a velocidad fija)
+    ctx.save(); ctx.beginPath(); ctx.rect(VX0, 154, VX1 - VX0, 192); ctx.clip();
+    for (let i = 0; i < 8; i++) {
+      const span = VX1 - VX0 + 140, x = VX0 - 70 + ((i * 197 + 60 * T) % span), y = 178 + (i * 61) % 145;
+      ctx.fillStyle = C.coral; ctx.beginPath(); ctx.ellipse(x, y, 40, 22, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = tone(C.coral, -.14); ctx.beginPath(); ctx.ellipse(x, y, 18, 8, 0, 0, TAU); ctx.fill();
     }
-    kinetic(ctx, 'Y vuelve como lluvia', W / 2, 1320, .9375, sq, { size: 110, col: C.ink });
-    wipeIn(ctx, st, C.blue, { d: .35 });
+    ctx.restore();
+
+    // ── señal ──
+    const sigA = s === 4 || ph === 'fin' ? 1 : .3;
+    if (ph === 'sano' && T >= SIG + E8) {
+      const L = SIGL * lapse(T, SIG + E8, 3 * E8);                                  // onda a velocidad fija: lineal
+      ctx.save(); ctx.globalAlpha = sigA; lineOn(ctx, SIGP, L / SIGL, { col: C.mint, w: 16 });
+      DX.forEach((x, d) => { if (L >= BR[d]) lineOn(ctx, [[x, PY], [x, VY - VR - 4]], lapse(T, branchT(d), .1), { col: C.mint, w: 16 }); });
+      if (L < SIGL) { const q = trimPath(SIGP, L / SIGL), [hx, hy] = q[q.length - 1]; ctx.fillStyle = C.white; ctx.beginPath(); ctx.arc(hx, hy, 9, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+    if (ph === 'fin') { lineOn(ctx, SIGP, 1, { col: C.mint, w: 16 }); DX.forEach(x => lineOn(ctx, [[x, PY], [x, VY - VR - 4]], 1, { col: C.mint, w: 16 })); }
+    if (ph === 't2' && T >= WEAK + E8) {
+      const L = 560 * eo(lapse(T, WEAK + E8, 3 * E8)), col = tone(C.mint, .45);   // se frena y se apaga antes de llegar
+      ctx.save(); ctx.globalAlpha = s === 8 ? 1 : .3; lineOn(ctx, SIGP, L / SIGL, { col, w: 16 });
+      if (L >= BR[0]) lineOn(ctx, [[DX[0], PY], [DX[0], VY - VR - 4]], .5 * lapse(T, WEAK + E8 + 1.37 * E8, .2), { col, w: 16 });
+      const f = T - (WEAK + 4 * E8);
+      if (f < 0 || (f < 2 * E8 && Math.floor(f / E16) % 2 === 0)) { const q = trimPath(SIGP, L / SIGL), [hx, hy] = q[q.length - 1]; ctx.fillStyle = tone(C.mint, .2); ctx.beginPath(); ctx.arc(hx, hy, 9, 0, TAU); ctx.fill(); }
+      ctx.restore();
+    }
+    // marca de la señal: el arranque se enciende antes de salir (anticipación)
+    for (const a of [SIG, WEAK]) if (T >= a && T < a + E8 && (ph === 'sano') === (a === SIG)) { ctx.fillStyle = C.mint; ctx.beginPath(); ctx.arc(RX, 800, 14 * popIn(lapse(T, a, E8 * .8)), 0, TAU); ctx.fill(); }
+
+    // ── vesículas GLUT4 y puertas ──
+    DX.forEach((x, d) => {
+      let a = null;
+      if (ph === 'sano') a = RISE1[d]; else if (ph === 't2') a = d === 0 ? RISE2 : null; else a = -1e9;
+      const ghost = ph === 'fin' && d > 0 ? lapse(T, GHOST(d), E8) : 0;
+      if (a == null || T < a) {
+        let k = 1;
+        if (ph === 't2' && d > 0 && T >= RISE2 + E8 && T < RISE2 + 3 * E8) k = 1 - .1 * Math.sin(PI * lapse(T, RISE2 + E8, 2 * E8));   // intentan subir y no pueden
+        const lit = ph === 'sano' && T >= branchT(d) + .1;
+        const pk = lit ? 1 + .1 * Math.sin(PI * lapse(T, branchT(d) + .1, .3)) : 1;
+        body(ctx, x, VY + VR * (1 - k), { k, s: pk }, vesBubbleP, tone(C.mint, .72));
+        body(ctx, x, VY + VR * (1 - k), { k, s: pk, sh: 0 }, glutP, lit || (ph === 't2' && d === 0 && T >= WEAK + 2.4 * E8) ? C.mint : tone(C.mint, .35));
+        if (lit) ring(ctx, x, VY, T, branchT(d) + .1, { r0: VR, r1: VR + 40 });
+        return;
+      }
+      if (T < a + E8) { const u = eio((T - a) / E8), k = 1 - .25 * u, y = VY + VR * (1 - k); body(ctx, x, y, { k }, vesBubbleP, tone(C.mint, .72)); body(ctx, x, y, { k, sh: 0 }, glutP, C.mint); return; }
+      if (T < a + 3 * E8) {
+        const u = (T - a - E8) / (2 * E8), f = v => arco([x, VY + 16], [x, MC], llegar(v, .06), 40);
+        const k = u < .25 ? lerp(.75, 1.3, u / .25) : lerp(1.3, 1, (u - .25) / .75), [px, py] = f(u), dir = dirOf(f, u);
+        body(ctx, px, py, { k, dir }, vesBubbleP, tone(C.mint, .72)); body(ctx, px, py, { k, dir, sh: 0 }, glutP, C.mint); return;
+      }
+      // se funde con la membrana: la burbuja se deshace y el transportador queda de puerta
+      const m = lapse(T, a + 3 * E8, E8);
+      if (m < 1) body(ctx, x, MC, { s: 1 - eio(m), sh: 0 }, vesBubbleP, tone(C.mint, .72));
+      let col = C.mint;
+      for (const E of (ph === 't2' ? ENT2 : ph === 'sano' ? ENT1 : [])) if (E.d === d && Math.abs(T - crossT(E)) < .1) col = tone(C.mint, .5);   // destella al pasar la glucosa
+      if (ph === 'fin' && d > 0 && T >= GHOST(d) - E8 && T < GHOST(d)) ring(ctx, x, MC, T, GHOST(d) - E8, { r0: 70, r1: 110, col: C.coral, d: E8 });   // marca: estas dos puertas van a faltar
+      if (ghost > 0) {
+        ctx.save(); ctx.translate(x, MC); ctx.strokeStyle = C.coral; ctx.lineWidth = 6; ctx.setLineDash([14, 12]); ctx.globalAlpha = eio(ghost); doorP(ctx); ctx.stroke(); ctx.restore();
+        body(ctx, x, MC, { a: 1 - eio(ghost), s: 1 }, doorP, col);
+      } else {
+        const g = a < 0 ? 1 : popIn(lapse(T, a + 3 * E8, 1.3 * E8));
+        ctx.save(); ctx.translate(x, MC); ctx.scale(1, g); body(ctx, 0, 0, { sh: 8 }, doorP, col); ctx.restore();
+        if (a > 0) ring(ctx, x, MC, T, a + 3 * E8, { r0: 50, r1: 150 });
+      }
+    });
+
+    // ── receptor ──
+    let bindA = ph === 'sano' ? BIND[0] : ph === 't2' ? BIND[1] : -1e9;
+    const bound = T >= bindA + 3 * E8;
+    let open = 0;
+    if (T >= bindA && T < bindA + E8) open = eio((T - bindA) / E8);                            // abre los brazos donde va a encajar
+    else if (T >= bindA + E8 && T < bindA + 3 * E8) open = 1;
+    else if (bound && T < bindA + 3 * E8 + .5) open = 1 - ease.elastic(lapse(T, bindA + 3 * E8, .5)) * 1.0;  // cierra con rebote
+    let fk = 1;
+    for (const a of [SIG, WEAK]) if (T >= a && T < a + E8 && (ph === 'sano') === (a === SIG)) fk = 1 - .25 * Math.sin(PI * (T - a) / E8);   // los pies se encogen antes de mandar la señal
+    const rcol = bound ? C.mint : tone(C.mint, .45);
+    body(ctx, RX, MY - 10, { sh: 10 }, g => recArmsP(g, open), rcol);
+    ctx.save(); ctx.translate(RX, MY + 50); ctx.scale(1, fk); ctx.translate(0, -50); body(ctx, 0, 0, { sh: 0 }, recStemP, rcol); ctx.restore();
+    if (ph !== 'fin') ring(ctx, CUP[0], CUP[1], T, bindA + 3 * E8, { r0: 50, r1: 170 });
+
+    // ── páncreas ──
+    let pk = 1;
+    for (const a of [REL1, REL2]) if (T >= a && T < a + 3 * E8) pk = T < a + E8 ? 1 - .2 * eio((T - a) / E8) : .8 + .2 * llegar(lapse(T, a + E8, 2 * E8), .1);
+    const tired = ph === 't2' ? eio(lapse(T, TIRED, 3 * E8)) : 0;
+    pk *= 1 - .1 * tired;
+    const [psx, psy] = estirar(pk);
+    ctx.save(); ctx.translate(PAN_BASE[0], PAN_BASE[1]); ctx.scale(psx * .85, psy * .85);
+    flat(ctx, pancP, tone(C.blue, .55 + .25 * tired), { sh: 12 });
+    ctx.save(); ctx.strokeStyle = tone(C.blue, .3); ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); DUCT.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); ctx.restore();
+    ctx.globalAlpha = 1 - .6 * tired; isletP(ctx); ctx.fillStyle = C.blue; ctx.fill();
+    ctx.restore();
+
+    // ── insulina ──
+    const insFocus = i => s === 2 || s >= 11 || (i === 0 && (s >= 3 && s <= 9));
+    const insAt = (p, i, rel, list) => {
+      const a = rel + E8 + i * E16; if (T < a) return null;
+      const u = lapse(T, a, 2 * E8); return u < 1 ? travel(PANC, p, u, p[1] < 230 ? 25 : 70, 1.35) : { p, k: 1, dir: 0 };
+    };
+    INS.forEach((p, i) => {
+      if (ph === 'sano' && T < REL1 + E8 + i * E16) return;
+      let r = ph === 'sano' ? insAt(p, i, REL1) : { p, k: 1, dir: 0 };
+      if (i === 0) {
+        const a = bindA;
+        if (ph === 'fin' || T >= a + 3 * E8) r = { p: CUP, k: 1, dir: 0 };
+        else if (T >= a + E8) r = travel([p[0], p[1] - 14], CUP, (T - a - E8) / (2 * E8), 130, 1.35);
+        else if (T >= a) r = { p: [p[0], p[1] - 14 * eio((T - a) / E8)], k: 1 - .15 * eio((T - a) / E8), dir: 0 };
+      }
+      body(ctx, r.p[0], r.p[1], { k: r.k, dir: r.dir, a: insFocus(i) ? 1 : .3, sh: 8 }, insP, C.blue);
+    });
+    if (ph === 't2') INS2.forEach((p, i) => { const r = insAt(p, i, REL2); if (r) body(ctx, r.p[0], r.p[1], { k: r.k, dir: r.dir, a: s === 10 ? 1 : .3, sh: 8 }, insP, C.blue); });
+
+    // ── glucosa ──
+    const ents = ph === 't2' ? ENT2 : ph === 'sano' ? ENT1 : [];
+    const list = ph === 't2' ? GL.concat(GX) : GL;
+    list.forEach((b, i) => {
+      let r = { p: b, k: 1, dir: 0 }, foc = s === 0 || s >= 11 || s === 9;
+      if (ph === 'sano' && T < GA(17) + 2 * E8) { r = hookPose(i, b, T); if (!r) return; }
+      if (i === BOUNCER) { if (ph === 'sano') { const q = bouncePose(b, T); if (q) r = q; foc = foc || s === 1; } else r = { p: BOUNCE_TO, k: 1, dir: 0 }; }
+      const E = ents.find(E => E.g === i);
+      if (E) { const q = entryPose(E, b, T); if (q) { r = q; foc = true; } }
+      if (ph === 'fin') { const F = ENT1.find(E => E.g === i); if (F) r = { p: [DX[F.d] - 40 + 80 * F.w, PILE], k: 1, dir: 0 }; }
+      const y = r.sitY ? r.p[1] + 36 * (1 - estirar(r.k)[1]) : r.p[1];               // aplastada sobre el suelo, no en el aire
+      body(ctx, r.p[0], y, { k: r.k, dir: r.dir, s: r.s ?? 1, a: foc ? 1 : .3, sh: 10 }, hexP, C.sun);
+    });
+    // la membrana acusa el golpe: una onda donde rebota la glucosa
+    if (ph === 'sano') { const hit = at(1, 2) + 2.5 * E8; ring(ctx, GL[BOUNCER][0], MY, T, hit, { r0: 30, r1: 140, col: C.ink, d: .4 }); }
+    // la boca del vaso se abre antes de que entre la glucosa (anticipación)
+    if (T >= at(0, 1) && T < at(0, 2) + .3) { const u = lapse(T, at(0, 1), E8 + .3); ctx.save(); ctx.globalAlpha = .9 * Math.sin(PI * u); ctx.fillStyle = C.sun; ctx.beginPath(); ctx.ellipse(MOUTH[0], MOUTH[1], 22 + 10 * eio(u), 80 + 20 * eio(u), 0, 0, TAU); ctx.fill(); ctx.restore(); }
+
+    // ── panel 1: glucosa en sangre ──
+    const v = glucoseValue(T), vr = Math.round(v), vcol = vr <= 140 ? C.mint : vr > 180 ? C.coral : C.sun;
+    const ch = vr !== Math.round(glucoseValue(T - .12));
+    const nb = txt(ctx, String(vr), 1860, 340, { size: 170, col: ch ? tone(C.ink, .25) : C.ink });
+    txt(ctx, 'mg/dL', 1860 + nb.w + 24, 372, { size: 60, col: tone(C.ink, .3) });
+    ctx.fillStyle = vcol; rrect(ctx, 1860, 450, vx(v) - 1860, 40, 20); ctx.fill();
+    flat(ctx, q => { q.beginPath(); q.arc(vx(v), 470, 30, 0, TAU); }, vcol, { sh: 8 });
+    const t2s = ph === 't2', sw = t2s ? lapse(T, CUT + .4, .35) : 0;
+    if (t2s) kinetic(ctx, 'Diabetes tipo 2', 1860, 615, CUT + .4, T, { size: 64, col: C.coral, align: 'left', stagger: .07 });
+    else txt(ctx, 'Sin diabetes', 1860, 615, { size: 64, col: tone(C.mint, -.25) });
+
+    // ── panel 2: piezas → resumen ──
+    if (T < REC) {
+      txt(ctx, 'Piezas', 1860, 830, { size: 56, col: tone(C.ink, .3) });
+      LEGEND.forEach(([name, t], k) => {
+        if (T < t) return; const y = 925 + k * 96, u = lapse(T, t, .35), sc = popIn(u);
+        if (k === 0) body(ctx, 1895, y, { s: sc * .7, sh: 6 }, hexP, C.sun);
+        else if (k === 1) body(ctx, 1895, y, { s: sc * .8, sh: 6 }, insP, C.blue);
+        else if (k === 2) { ctx.save(); ctx.translate(1895, y + 20); ctx.scale(.42 * sc, .42 * sc); ctx.translate(0, -MY + 40); body(ctx, 0, MY - 10 - 40, { sh: 0 }, g => recArmsP(g, 0), C.mint); ctx.restore(); }
+        else if (k === 3) { ctx.save(); ctx.globalAlpha = u; lineOn(ctx, [[1862, y], [1930, y]], u, { col: C.mint, w: 14 }); ctx.restore(); }
+        else body(ctx, 1895, y, { s: sc * .5, sh: 0 }, doorP, C.mint);
+        kinetic(ctx, name, 1960, y, t, T, { size: 60, align: 'left' });
+      });
+    } else {
+      txt(ctx, 'Así funciona', 1860, 830, { size: 56, col: tone(C.ink, .3) });
+      RECAP.forEach((line, k) => {
+        const t = RECAP_T(k); if (T < t) return; const y = 925 + k * 86, sc = popIn(lapse(T, t, .35));
+        flat(ctx, q => { q.beginPath(); q.arc(1890, y, 30 * sc, 0, TAU); }, C.ink, { sh: 6 });
+        if (sc > .5) txt(ctx, String(k + 1), 1890, y + 2, { size: 40, col: C.white, align: 'center' });
+        kinetic(ctx, line, 1940, y, t, T, { size: 56, align: 'left' });
+        const [bx, by] = BADGE[k];
+        flat(ctx, q => { q.beginPath(); q.arc(bx, by, 34 * sc, 0, TAU); }, C.ink, { sh: 8 });
+        if (sc > .5) txt(ctx, String(k + 1), bx, by + 2, { size: 44, col: C.white, align: 'center' });
+      });
+      T2L.forEach((line, k) => kinetic(ctx, line, 1860, 1275 + k * 76, T2_T(k), T, { size: 56, col: C.coral, align: 'left' }));
+    }
+
+    // ── rótulo del plano ──
+    const L = LAB.find(l => T >= l.t && T < l.e);
+    if (L) { const [x, y, align] = ZONE[L.z]; kinetic(ctx, L.str, x, y, L.t, T, { size: 110, align }); }
+    // ── transiciones: un panel de color barre la pantalla al cambiar de estado ──
+    if (s === 7) wipeIn(ctx, st, C.coral, { d: .4 });
+    if (s === 11) wipeIn(ctx, st, C.blue, { d: .4 });
   },
-  score() { return [{ t: 2.5, k: 'whoosh', dur: .4, p0: -.8, p1: .8, f0: 400, f1: 2400, v: .4 }, { t: 2.8125, k: 'pop', v: .9, f: 500 }, { t: 2.8125, k: 'synth', n: chordAt(MUSIC, 2.8125, 5)[0], v: .5, dur: .4 }, ...this.DROPS.map(([x, t0]) => ({ t: 2.5 + this.hit(t0), k: 'click', v: .7, pan: (x - W / 2) / W }))]; },
-  poke() { return false; },
 };
-SHOTS.push(S1, S2);
-const MUSIC = { bpm: 110, key: 'D', mode: 'major', prog: [1, 5, 6, 4], inst: { pad: 'synth', bass: 'bass', keys: 'synth', lead: 'marimba', perc: 'click' } };
+
+// ═══ sonido: cada suceso visible, en su instante ═══
+const MUSIC = { bpm: 110, key: 'D', mode: 'major', prog: [1, 5, 6, 4], inst: { pad: 'synth', bass: 'bass', keys: 'synth', lead: 'marimba', perc: 'click' }, seed: 5 };
 function baseScore() { return [{ t: 0, k: 'bed', kind: 'studio', dur: DUR }, ...compose(MUSIC)]; }
+function allEvents() {
+  const ev = [], note = (t, i, v = .45, oct = 6) => { const ch = chordAt(MUSIC, t, oct); ev.push({ t, k: 'marimba', n: ch[i % ch.length], v }); },
+    pop = (t, v = .4, f = 900, pan = 0) => ev.push({ t, k: 'pop', v, f, pan }), click = (t, v = .4, pan = 0) => ev.push({ t, k: 'click', v, pan }),
+    tick = (t, v = .3) => ev.push({ t, k: 'tick', v }), whoosh = (t, dur, v = .35, o = {}) => ev.push({ t, k: 'whoosh', dur, v, ...o });
+  const panX = x => clamp((x - 1280) / 1280, -.8, .8);
+  // gancho: la boca se abre, la glucosa entra a chorro
+  whoosh(at(0, 1), E8 + .3, .25, { p0: -.8, p1: -.4, f0: 250, f1: 900 });
+  GL.forEach((b, i) => { pop(GA(i), .18, 700 + 30 * i, panX(MOUTH[0])); click(GA(i) + 1.5 * E8, .1, panX(b[0])); });
+  // rótulos y leyenda: cada palabra que sube
+  for (const l of LAB) l.str.split(' ').forEach((_, k) => tick(l.t + k * .07, .18));
+  LEGEND.forEach(([, t], k) => { pop(t, .3, 1100); note(t, k, .25, 7); });
+  // la membrana la frena
+  { const a = at(1, 2), hit = a + 2.5 * E8; tick(a, .3); click(hit, .7, panX(GL[BOUNCER][0])); note(hit, 0, .4, 5); click(hit + .1 + 2 * E8, .3, panX(BOUNCE_TO[0])); }
+  // el páncreas suelta insulina (dos veces)
+  for (const [rel, n] of [[REL1, INS.length], [REL2, INS2.length]]) { tick(rel, .35); for (let i = 0; i < n; i++) { pop(rel + E8 + i * E16, .4, 600 + 80 * i, -.6); click(rel + 3 * E8 + i * E16, .15); } }
+  ev.push({ t: TIRED, k: 'synth', n: 'A3', v: .3 }); ev.push({ t: TIRED + E8, k: 'synth', n: 'F#3', v: .3 });
+  // unión al receptor: los brazos se abren, la insulina viaja, encaja y se enciende
+  for (const a of BIND) { tick(a, .3); whoosh(a + E8, 2 * E8, .2, { p0: -.5, p1: -.6, f0: 500, f1: 1500 }); click(a + 3 * E8, .6, -.6); [0, 1, 2].forEach(i => note(a + 3 * E8 + i * .04, i, .45)); }
+  // señal: arranca, barre la célula y enciende cada vesícula
+  tick(SIG, .3); whoosh(SIG + E8, 3 * E8, .35, { p0: -.6, p1: .4, f0: 400, f1: 2400 });
+  DX.forEach((x, d) => note(branchT(d) + .1, d, .5));
+  tick(WEAK, .3); whoosh(WEAK + E8, 3 * E8, .25, { p0: -.6, p1: -.3, f0: 600, f1: 300 });
+  ev.push({ t: WEAK + 4 * E8, k: 'synth', n: 'B3', v: .3 }); ev.push({ t: WEAK + 5 * E8, k: 'synth', n: 'G3', v: .3 });
+  // las puertas suben
+  RISE1.forEach((a, d) => { tick(a, .2); whoosh(a + E8, 2 * E8, .15, { p0: panX(DX[d]), p1: panX(DX[d]), f0: 300, f1: 1200 }); pop(a + 3 * E8, .5, 800 + 150 * d, panX(DX[d])); note(a + 3 * E8, d, .35); });
+  tick(RISE2, .2); whoosh(RISE2 + E8, 2 * E8, .15, { f0: 300, f1: 1200 }); pop(RISE2 + 3 * E8, .5, 800, panX(DX[0])); note(RISE2 + 3 * E8, 0, .35);
+  [1, 2].forEach(d => tick(RISE2 + 2 * E8, .15));
+  // la glucosa entra: salto, paso por la puerta, golpe en el montón
+  for (const E of ENT1.concat(ENT2)) { tick(E.a, .15); pop(crossT(E), .45, 1000 + 120 * E.d, panX(DX[E.d])); note(crossT(E), E.d + E.w, .35); click(landT(E), .35, panX(DX[E.d])); }
+  // cortes con barrido
+  whoosh(CUT, .4, .45, { p0: -.8, p1: .8, f0: 300, f1: 2000 }); whoosh(REC, .4, .45, { p0: -.8, p1: .8, f0: 300, f1: 2000 });
+  ev.push({ t: CUT + .4, k: 'synth', n: 'D4', v: .25 });
+  // síntesis: cada paso numerado, en escalera
+  RECAP.forEach((_, k) => { pop(RECAP_T(k), .45, 900 + 120 * k); note(RECAP_T(k), k, .45); });
+  T2L.forEach((_, k) => pop(T2_T(k), .35, 600));
+  [1, 2].forEach(d => { tick(GHOST(d) - E8, .2); click(GHOST(d), .3, panX(DX[d])); });
+  return ev;
+}
+let EV = null;
+const shotScore = t0 => { EV = EV || allEvents(); const s = SHOTS.find(x => x.t0 === t0); return EV.filter(e => e.t >= t0 - 1e-6 && e.t < s.t0 + s.dur - 1e-6); };
+// cámara casi quieta: un zoom muy lento que respira a lo largo de todo el vídeo, sin saltos en los cortes
+const CAM = T => ({ x: 1280, y: 720, z: 1.015 + .015 * Math.sin(TAU * T / 24) });
+SHOTS.push(...SH.map(([name, n, energy], i) => sharedShot(HILO, { name, dur: n * E8, energy, cam: st => CAM(T0[i] + st), score: shotScore })));
 // VOZ-INICIO — narration clips, written by incrustar-voz.cjs: { t: seconds, v: gain, b64: base64 of a wav/mp3 }
 const VOICE = [];
 // VOZ-FIN
@@ -933,12 +1288,31 @@ function tick(now) {
 // ── UI ──
 const $ = id => document.getElementById(id);
 const tcFmt = t => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}.${String(Math.floor((t % 1) * 100)).padStart(2, '0')}`;
+// Iconos de la barra: trazos de 24×24 en el color del texto; el nombre va en aria-label y title.
+const ICONOS = {
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+  pausa: '<path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z" fill="currentColor"/>',
+  reiniciar: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  sonido: '<path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  mudo: '<path d="M4 9.5h4l5-4.5v14l-5-4.5H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  poses: '<rect x="3" y="5" width="18" height="14" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9 5v14M15 5v14" stroke="currentColor" stroke-width="2"/>',
+  fluido: '<path d="M3 12c3-6 6-6 9 0s6 6 9 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>',
+  ampliar: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+  salir: '<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+function icono(id, nombre, etiqueta) {
+  const b = $(id);
+  if (b.dataset.icono !== nombre) { b.dataset.icono = nombre; b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS[nombre]}</svg>`; }
+  b.setAttribute('aria-label', etiqueta); b.title = etiqueta;
+}
 function ui() {
+  icono('rs', 'reiniciar', 'Reiniciar');
   const t = Math.max(0, film.f) / FPS;
   $('tc').textContent = `${tcFmt(t)} / ${tcFmt(DUR)}`; $('head').style.left = `${(t / DUR) * 100}%`;
-  $('pp').textContent = film.playing ? 'Pause' : 'Play'; $('pp').setAttribute('aria-pressed', film.playing);
-  $('sm').textContent = film.smooth ? `Smooth · ${FPS} poses/s` : `Stop-motion · ${+(FPS / EXPO).toFixed(1)} poses/s`;
-  $('snd').textContent = !film.audio ? 'Sound off' : film.muted ? 'Muted' : 'Sound on';
+  icono('pp', film.playing ? 'pausa' : 'play', film.playing ? 'Pausar' : 'Reproducir'); $('pp').setAttribute('aria-pressed', film.playing);
+  icono('sm', film.smooth ? 'fluido' : 'poses', film.smooth ? `Fluido · ${FPS} poses/s` : `Stop-motion · ${+(FPS / EXPO).toFixed(1)} poses/s`);
+  icono('snd', !film.audio || film.muted ? 'mudo' : 'sonido', !film.audio ? 'Sonido apagado' : film.muted ? 'Silenciado' : 'Sonido activado');
+  icono('fs', document.fullscreenElement ? 'salir' : 'ampliar', document.fullscreenElement ? 'Salir de pantalla completa' : 'Pantalla completa');
   document.querySelectorAll('#track .seg').forEach((el, i) => el.classList.toggle('on', i === film.shotIdx));
 }
 function startFilm() { $('start').hidden = true; film.audio = true; film.started = true; seek(0, false); play(true); }
@@ -947,7 +1321,18 @@ $('pp').addEventListener('click', () => { if (!film.started) return startFilm();
 $('rs').addEventListener('click', () => { if (!film.started) return startFilm(); seek(0); if (!film.playing) play(true); });
 $('sm').addEventListener('click', () => { film.smooth = !film.smooth; seek(film.f); });
 $('snd').addEventListener('click', () => { if (!film.audio) { film.audio = true; film.muted = false; if (film.playing) audioFrom(film.clock); } else { film.muted = !film.muted; if (SND) SND.master.gain.setTargetAtTime(film.muted ? 0 : .92, AC.currentTime, .03); } ui(); });
-$('fs').addEventListener('click', () => { const el = $('frame'); (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {}); });
+// Incrustado o a pantalla completa, la barra va encima de la imagen: aparece al mover el ratón o pulsar una tecla
+// y se oculta a los 2 s sin actividad, salvo con el ratón sobre ella.
+(() => {
+  const raiz = document.documentElement; let espera = 0, sobreBarra = false;
+  const mostrar = () => { raiz.classList.add('controles'); clearTimeout(espera); espera = setTimeout(() => { if (!sobreBarra) raiz.classList.remove('controles'); }, 2000); };
+  for (const ev of ['pointermove', 'pointerdown', 'keydown']) addEventListener(ev, mostrar);
+  $('bar').addEventListener('pointerenter', () => { sobreBarra = true; });
+  $('bar').addEventListener('pointerleave', () => { sobreBarra = false; mostrar(); });
+})();
+// Pantalla completa del reproductor entero, para que los controles sigan a mano (aparecen al mover el ratón).
+$('fs').addEventListener('click', () => { (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())?.catch?.(() => {}); });
+document.addEventListener('fullscreenchange', () => ui());
 // scrubber (drag to scrub; paused scrubbing lands on exposures, like an animator's frame flip)
 (() => {
   const tr = $('track'); let drag = false, was = false;
@@ -995,17 +1380,22 @@ addEventListener('keydown', ev => {
   DUR = acc; NF = Math.round(DUR * FPS);
   cv.width = W; cv.height = H; document.documentElement.style.setProperty('--ar', W / H);
   if (FORMAT.pixel) cv.style.imageRendering = 'pixelated';
+  // Con un estilo de fondo claro, la pantalla de inicio se aclara y el título pasa a tinta.
+  { const h = FORMAT.post.bg.replace('#', ''), [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); if (.2126 * r + .7152 * g + .0722 * b > 128) document.documentElement.classList.add('fondo-claro'); }
   const tr = $('track'); tr.style.gridTemplateColumns = SHOTS.map(s => `${s.t1 - s.t0}fr`).join(' ');
   SHOTS.forEach(s => { const el = document.createElement('span'); el.className = 'seg'; el.textContent = s.name; el.title = s.name; tr.insertBefore(el, $('head')); });
-  $('spec').textContent = `${+DUR.toFixed(2)} s · ${W}×${H} · ${FPS} fps · sound on`;
+  // El nombre de un plano solo se escribe si cabe entero; si no, queda en el title (al pasar el ratón).
+  new ResizeObserver(() => tr.querySelectorAll('.seg').forEach(el => { el.classList.remove('estrecho'); el.classList.toggle('estrecho', el.scrollWidth > el.clientWidth + 1); })).observe(tr);
+  $('spec').textContent = `${+DUR.toFixed(1)} s · con sonido`;
   if (EXPO === 1) $('sm').hidden = true;
   await document.fonts.ready;
+  if (typeof KIT_READY !== 'undefined') await KIT_READY; // un kit que carga algo asíncrono (3b1b: MathJax) lo espera aquí, antes de build()
   if (VOICE.length) { const O = new OfflineAudioContext(1, 1, 48000); for (const c of VOICE) { const b = atob(c.b64), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); c.buf = await O.decodeAudioData(u.buffer); } }
   for (const s of SHOTS) s.build();
   buildScore();
   const t = Q.get('t'), fr = Q.get('frame');
   if (Q.get('ui') === '0') document.documentElement.classList.add('bare');
-  seek(fr != null ? +fr : t != null ? +t * FPS : 0, false);
+  seek(fr != null ? +fr : t != null ? +t * FPS : FORMAT.poster != null ? Math.round(FORMAT.poster * FPS) : 0, false);
   film.ready = true; window.__READY = true;
   if (t != null || fr != null || Q.get('ui') === '0') { $('start').hidden = true; film.started = true; }
   requestAnimationFrame(tick);

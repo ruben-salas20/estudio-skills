@@ -4,18 +4,9 @@
 
 ## Formato
 
-El bloque `FORMAT` fija tamaño, cadencia y aspecto final. `W`, `H`, `FPS` y `EXPO` salen de él. El estilo dice qué poner en `expo`, `post`, `ink`, `light`, `paper`, `shadow` (sombra por defecto de los sprites; `null` para ninguna) y `pixel`; la proporción la pide el usuario:
+El bloque `FORMAT` fija tamaño, cadencia y aspecto final. `W`, `H`, `FPS` y `EXPO` salen de él. El estilo dice qué poner en `expo`, `post`, `ink`, `light`, `paper`, `shadow` (sombra por defecto de los sprites; `null` para ninguna) y `pixel`. El vídeo es 16:9: un mundo de 2560 × 1440 (o la rejilla de pixel, abajo), que se exporta a 1920 × 1080. `safe` se deja en `null`. `poster` es el segundo que se ve antes de dar a reproducir: elige uno en el que la idea ya se vea.
 
-| Proporción | `w × h` del mundo | Exporta por defecto |
-|---|---|---|
-| 16:9 | 2560 × 1440 | 1920 × 1080 |
-| 9:16 | 1440 × 2560 | 1080 × 1920 |
-| 1:1 | 1440 × 1440 | 1080 × 1080 |
-| 4:5 | 1440 × 1800 | 1080 × 1350 |
-
-`safe` es la zona segura del uso (`usos.md`): solo la dibuja `grabar.cjs --zonas` al revisar.
-
-Con `pixel: true`, `w × h` es una rejilla de pixeles pequeña (640×360, 360×640, 360×360 o 360×450) que el reproductor y `grabar.cjs` amplían sin suavizado, y `setCam` redondea la traslación a pixeles enteros. Solo tiene sentido con un estilo que dibuje pixel a pixel (`estilos/pixel.md`).
+Con `pixel: true`, `w × h` es una rejilla de pixeles pequeña (640 × 360) que el reproductor y `grabar.cjs` amplían sin suavizado, y `setCam` redondea la traslación a pixeles enteros (`estilos/pixel.md`).
 
 La duración no se escribe en ningún sitio: es la suma de los `dur` de los planos. El motor calcula en el arranque `DUR` (segundos) y `NF` (fotogramas), la barra de planos del reproductor y el fundido final del sonido (0,45 s).
 
@@ -49,20 +40,23 @@ const S1 = {
 SHOTS.push(S1);
 ```
 
-`this.t0` ya vale cuando se llaman `build` y `score`. Un plano puede llevar además `energy` (0–1), que usa la música. Fuera de los planos, `function baseScore()` devuelve el ambiente y la música del vídeo (ver Música).
+`this.t0` ya vale cuando se llaman `build` y `score`. Un plano puede llevar además `energy` (0–1), que usa la música. Fuera de los planos, `function baseScore()` devuelve el ambiente y la música del vídeo (ver Música): sustituye la vacía que trae la plantilla.
 
 ## Reglas duras
 
 - **Determinismo.** `reset`, `step` y `draw` usan solo `rng(semilla)`, `hash` y `noise`. `Math.random` vale solo dentro de `poke`. Saltar a cualquier fotograma o exportar tiene que dar la misma imagen siempre.
 - `draw` no cambia el estado. Todo lo que se mueve se lee de la foto (`r*`).
-- Lo estático se hornea en `build`. `__film.time()` mide un fotograma completo, esperando a la GPU. Referencia en este portátil: 2–3 ms sin fondo horneado (motion) y 17–22 ms con fondo y postproceso (el resto de estilos). Si un plano pasa de 25 ms, hornea más de lo que dibuja en vivo.
-- El mundo ya está vivo en el fotograma 0 de cada plano: `reset` pre-rueda entre 60 y 150 pasos.
+- Lo estático y costoso (texturas, ruido, muchas piezas) se hornea en `build`; unas pocas formas planas se dibujan más rápido en vivo. Si al reproducir un plano va a tirones, mide `__film.time()` en la consola del navegador (un fotograma completo; referencia: de 2 a 22 ms): por encima de 25 ms, hornea más de lo que dibuja en vivo.
+- Si hay física, el mundo ya está vivo en el fotograma 0 de cada plano: `reset` pre-rueda entre 60 y 150 pasos.
 
 ## Atajos
 
 - `lapse(t, a, d)`: de 0 a 1 mientras `t` va de `a` a `a + d`; es la `u` de casi todo lo que se traza, crece o aparece.
 - `onFrame(T, ev)`: verdadero en el fotograma exacto del suceso `ev`; se usa en `step` para dar impulsos a resortes o soltar partículas.
 - `popIn(u)`: escala de aparición con rebote (0 → 1,12 → 1).
+- `llegar(u, s)`: de 0 a 1 arrancando suave; al 75 % de `u` se ha pasado `s` (0,08 por defecto) y al final vuelve a 1. Para todo lo que va de un sitio a otro.
+- `arco(a, b, u, h)`: el punto `[x, y]` que va de `a` a `b` por una curva que se separa `h` de la recta en el centro, en cualquier dirección: hacia arriba si va hacia la derecha, hacia la izquierda si sube; con `h` negativo, al otro lado.
+- `estirar(k)`: `[ancho, alto]` para escalar sin cambiar el área; `k > 1` estira en vertical y `k < 1` aplasta. Para otra dirección, gira antes el lienzo al ángulo del movimiento menos 90°.
 - `keyframes([[t, v], …], t)`: valor interpolado entre claves; sirve para recorridos con pausas (una aguja que avanza despacio y luego salta).
 - `camPath([x, y, z], [x, y, z], dur, ease)`: devuelve la `cam` de un plano que va de un encuadre a otro.
 
@@ -82,7 +76,7 @@ SHOTS.push(
 );
 ```
 
-`sharedShot(set, o)` construye el plano: hornea el decorado una sola vez y le pasa el tiempo global. Los sucesos del decorado se programan en segundos globales.
+`sharedShot(set, o)` construye el plano: hornea el decorado una sola vez y le pasa el tiempo global. El `score` de cada plano recibe su `t0`: escribe cada suceso como `t0 + segundos dentro del plano`, como en el ejemplo.
 
 ## Caja de herramientas
 
@@ -132,4 +126,4 @@ La narración (solo si el usuario la pide) está en `voz.md`: cómo se incrusta,
 
 ## Ganchos de captura
 
-`window.__film.seek(f)`, `.time()`, `.wav()` y `.info()`; las globales `W`, `H`, `FPS`, `DUR` y `NF`. Parámetros de URL: `?frame=N`, `?t=s`, `?ui=0` (sin controles) y `?smooth=1` (sin pose retenida). `grabar.cjs` los usa.
+`window.__film.seek(f)`, `.time()`, `.wav()` y `.info()`; las globales `W`, `H`, `FPS`, `DUR` y `NF`. Parámetros de URL: `?frame=N`, `?t=s`, `?ui=0` (sin controles) y `?smooth=1` (sin pose retenida). La revisión y `grabar.cjs` los usan.

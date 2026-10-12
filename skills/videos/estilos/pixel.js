@@ -117,13 +117,16 @@ const FONT57 = (() => {
 // ancho en pixeles de un texto a escala s (cada letra ocupa 5 + 1 de espacio)
 const ptextW = (str, s = 1, gap = 1) => Math.max(0, String(str).length * (5 + gap) - gap) * s;
 // texto pixel: escala entera; `led` deja una rejilla oscura entre pixeles (visor), `shade` aclara la fila de arriba
+// Mayúsculas con tilde, Ñ y Ü: la letra entera y el signo en dos filas por encima de la línea (filas −2 y −1).
+const SIGNOS57 = { 'Á': ['A', 0x02, 0x04], 'É': ['E', 0x02, 0x04], 'Í': ['I', 0x02, 0x04], 'Ó': ['O', 0x02, 0x04], 'Ú': ['U', 0x02, 0x04], 'Ñ': ['N', 0x0D, 0x12], 'Ü': ['U', 0x00, 0x0A] };
 function ptext(ctx, str, x, y, { col = C.pxWhite, s = 1, align = 'left', gap = 1, u = 1, led = false, shade = null, shadow = null } = {}) {
   str = String(str).toUpperCase(); const n = Math.ceil(str.length * clamp(u, 0, 1)), w = ptextW(str, s, gap);
   let X = (align === 'center' ? x - w / 2 : align === 'right' ? x - w : x) | 0; y |= 0;
   const blk = led && s > 2 ? s - 1 : s;
   for (let c = 0; c < n; c++) {
-    const g = FONT57[str[c]] || FONT57['?'];
-    for (let r = 0; r < 7; r++) for (let b = 0; b < 5; b++) if (g[r] >> (4 - b) & 1) {
+    const sg = SIGNOS57[str[c]], g = sg ? [sg[1], sg[2], ...FONT57[sg[0]]] : FONT57[str[c]] || FONT57['?'], r0 = sg ? -2 : 0;
+    for (let i = 0; i < g.length; i++) for (let b = 0; b < 5; b++) if (g[i] >> (4 - b) & 1) {
+      const r = i + r0;
       if (shadow) { ctx.fillStyle = shadow; ctx.fillRect(X + b * s + s, y + r * s + s, blk, blk); }
       ctx.fillStyle = shade && r === 0 ? shade : col; ctx.fillRect(X + b * s, y + r * s, blk, blk);
       if (led && s > 3) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(X + b * s, y + r * s, 1, 1); }

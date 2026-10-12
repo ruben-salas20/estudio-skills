@@ -19,18 +19,9 @@ Necesitas un agente que use skills y pueda lanzar subagentes, como [Claude Code]
 
 2. Abre tu agente y escribe `/setup-estudio-skills`. Te pregunta cómo te gusta aprender y dónde está tu carpeta de estudio, y escribe tu `AGENTS.md`.
 
-Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe. Solo `/crear-kit` y `/videos` son opcionales.
+Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe. Solo `/crear-kit` es opcional.
 
-> [!WARNING]
-> **`/videos` ocupa unos 5 MB** (motor, estilos y vídeos de ejemplo) y necesita **Node, Playwright, Chromium y ffmpeg**. El setup comprueba cuáles te faltan y te da el comando para instalarlos. Si no vas a hacer vídeos, quítala:
->
-> ```
-> npx skills remove --global videos
-> ```
->
-> `/explicar` lo detecta y deja de ofrecer el vídeo.
-
-`/escenas-3d` necesita **Chromium o Chrome** para comprobar las escenas.
+`/escenas-3d` y `/videos` necesitan **Chromium o Chrome** para comprobar lo que hacen. `/videos` necesita además **Node, Playwright y ffmpeg** solo si pides un MP4 o un vídeo con voz.
 
 **Para actualizar,** ejecuta `npx skills update -g` y después `/setup-estudio-skills`. La actualización sobrescribe las skills; el setup vuelve a aplicar las mejoras que aprobaste, guardadas en `MEJORAS.md`.
 
@@ -88,7 +79,7 @@ Empieza con `/estudiar`. Te pregunta qué quieres aprender y para qué, y elige 
 | `/repaso` | Repasa solo lo que fallaste, con pistas de menor a mayor. |
 | `/mejorar-estudio` | Revisa tus resultados y propone cambios al sistema, con datos. |
 | `/crear-kit` | Opcional. Crea tu kit de páginas HTML con tus colores y solo los componentes que necesitas. |
-| `/videos` | Opcional. Hace vídeos animados con código para explicar un tema. La usa `/explicar`. Necesita Node, Playwright, Chromium y ffmpeg. |
+| `/videos` | Hace vídeos explicativos animados con código, con música y voz opcional, incrustados en las páginas de estudio. Necesita Chromium o Chrome. |
 | `/escenas-3d` | Hace escenas 3D con Three.js que se mueven y se tocan, incrustadas en las páginas de estudio. Necesita Chromium o Chrome. |
 
 `/clase-a-tema` y `/estudiar-fase` se empiezan en una sesión nueva: así cada sesión trata un solo tema.
@@ -125,6 +116,7 @@ Gracias a quienes inspiraron este trabajo:
 - Ryan Sael, por sus [explicaciones visuales](https://sael.net/explainers/): `/escenas-3d` sigue su enfoque didáctico.
 - [wheresryan22](https://github.com/wheresryan22/anatomy), por la skill `anatomy`, que inspiró mejoras de `/escenas-3d`.
 - [HumanLayer](https://github.com/humanlayer/skills), por su skill `show-me`: `/explicar` incluye ideas suyas.
+- John Lasseter, por *Principles of Traditional Animation Applied to 3D Computer Animation* (SIGGRAPH 1987): `/videos` anima con sus principios.
 
 No se ha copiado código de estos proyectos. Las licencias de terceros están en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

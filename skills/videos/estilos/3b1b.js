@@ -6,7 +6,7 @@ Object.assign(C, { bg: '#0E0E11', white: '#ECECEC', grey: '#888888', axis: '#BBB
 const TEX_MACROS = Object.fromEntries(Object.entries({ B: C.blue, Y: C.yellow, G: C.green, R: C.red, T: C.teal, P: C.purple })
   .map(([k, h]) => [k, [`\\textcolor[RGB]{${[1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))}}{#1}`, 1]]));
 // tildes y signos del español a TeX de texto, para que salgan en la tipografía de las fórmulas
-const TEX_ACC = { 'á': "\\'a", 'é': "\\'e", 'í': "\\'{\\i}", 'ó': "\\'o", 'ú': "\\'u", 'Á': "\\'A", 'É': "\\'E", 'Í': "\\'I", 'Ó': "\\'O", 'Ú': "\\'U", 'ñ': '\\~n', 'Ñ': '\\~N', 'ü': '\\"u', '¿': '?`', '¡': '!`' };
+const TEX_ACC = { 'á': "\\'a", 'é': "\\'e", 'í': "\\'ı", 'ó': "\\'o", 'ú': "\\'u", 'Á': "\\'A", 'É': "\\'E", 'Í': "\\'I", 'Ó': "\\'O", 'Ú': "\\'U", 'ñ': '\\~n', 'Ñ': '\\~N', 'ü': '\\"u', '¿': '}\\class{mjx-inv}{\\text{?}}\\text{', '¡': '}\\class{mjx-inv}{\\text{!}}\\text{' };   // ¿ ¡: MathJax no los tiene; se giran ? y ! en tex()
 const texAccents = s => s.replace(/\\text\{([^{}]*)\}/g, (m, t) => '\\text{' + t.replace(/[áéíóúÁÉÍÓÚñÑü¿¡]/g, c => TEX_ACC[c]) + '}');
 
 // tex(str, {size}) hornea una fórmula: cada glifo es un Path2D con su largo de trazo. size = alto de 1 em en px del mundo.
@@ -18,6 +18,7 @@ function tex(str, { size = 100, col = C.white } = {}) {
   (function walk(el, M, fill) {
     if (el.getAttribute) {
       const tr = el.transform && el.transform.baseVal.consolidate(); if (tr) { const m = tr.matrix; M = M.multiply(new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f])); }
+      if (el.classList && el.classList.contains('mjx-inv')) { const b = el.getBBox(), cx = b.x + b.width / 2, cy = b.y + b.height / 2; M = M.translate(cx, cy).rotate(180).translate(-cx, -cy); }
       const f = el.getAttribute('fill'); if (f && f !== 'currentColor' && f !== 'none') fill = f;
     }
     const sc = Math.sqrt(Math.abs(M.a * M.d - M.b * M.c));

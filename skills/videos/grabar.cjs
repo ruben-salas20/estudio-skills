@@ -3,7 +3,7 @@
 //   node grabar.cjs video.html salida.mp4 [--ancho N] [--lufs -14 | --lufs no]
 //   node grabar.cjs video.html carpeta/ --fotogramas 20,140,290 [--ancho N]
 //   node grabar.cjs video.html hoja.jpg --hoja 300-440 [--n 12] [--ancho 480]
-// --zonas (fotogramas y hoja) sombrea en rojo los bordes que tapa la interfaz de la plataforma (FORMAT.safe, ver usos.md).
+// --zonas (fotogramas y hoja) sombrea en rojo los bordes que tapa la interfaz de la plataforma (FORMAT.safe).
 // Sin --ancho, el lado corto sale a 1080 px (16:9 → 1920×1080, 9:16 → 1080×1920, 4:5 → 1080×1350); en la hoja, cada viñeta mide 480 px.
 // El MP4 sale con el sonido normalizado a --lufs (−14 por defecto, el nivel al que normalizan las redes) y se verifica al terminar.
 // Lanza el Chromium del sistema (VIDEOS_CHROMIUM o `chromium` en el PATH): no todos los navegadores sin interfaz pintan canvas.

@@ -18,7 +18,7 @@ Una explicación a medida y desechable, en el formato que mejor se entienda.
    - **Texto:** una idea o una respuesta corta.
    - **Diagrama:** partes y cómo se conectan, un flujo, una jerarquía, un procedimiento.
    - **HTML:** algo para explorar, comparar o tocar.
-   - **Vídeo:** un proceso que cambia con el tiempo. Ofrécelo solo si existe `../videos/SKILL.md`.
+   - **Vídeo:** un proceso que cambia con el tiempo.
 
    Hecho cuando hay formato.
 
@@ -28,6 +28,6 @@ Una explicación a medida y desechable, en el formato que mejor se entienda.
    - **Texto:** en el chat, tan largo como pidan las ideas del paso 4.
    - **Diagrama:** sigue `diagrama.md`, en el chat.
    - **HTML:** sigue `html.md`.
-   - **Vídeo:** sigue `../videos/SKILL.md` con la forma explicativa.
+   - **Vídeo:** sigue `../videos/SKILL.md` y vuelve aquí con lo que entrega.
 
    Los archivos van en la ruta que diga la persona o, si no dice ninguna, en la carpeta actual; di siempre la ruta completa de cada archivo creado. Hecho cuando cada idea del paso 4 aparece en la entrega.
