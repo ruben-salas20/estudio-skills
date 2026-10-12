@@ -1,0 +1,1961 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="escenas-3d" content="laboratorio">
+<title>Cómo bombea el corazón</title>
+<style>
+  /* Variables de interfaz por tema. Los colores 3D (--c-*) los escribe el guion desde TEMAS. */
+  body[data-tema=oscuro] {
+    --fondo: #16181d; --panel: rgba(27, 30, 37, .84); --borde: rgba(255, 255, 255, .13);
+    --texto: #e9ecf1; --tenue: #a0aab8; --acento: #6db1ff; --sobre-acento: #071220;
+    --boton: rgba(255, 255, 255, .07); --boton-hover: rgba(255, 255, 255, .14);
+  }
+  body[data-tema=claro] {
+    --fondo: #eceef1; --panel: rgba(255, 255, 255, .84); --borde: rgba(0, 0, 0, .15);
+    --texto: #1c2128; --tenue: #56606d; --acento: #1d6bd1; --sobre-acento: #ffffff;
+    --boton: rgba(0, 0, 0, .05); --boton-hover: rgba(0, 0, 0, .11);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background: var(--fondo); color: var(--texto);
+    font: 14px/1.5 system-ui, "Segoe UI", sans-serif;
+  }
+  #lienzo { position: fixed; inset: 0; }
+  #lienzo canvas { display: block; }
+  [hidden] { display: none !important; }
+
+  .tarjeta {
+    background: var(--panel); border: 1px solid var(--borde); border-radius: 12px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .rotulo {
+    font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--tenue);
+  }
+  .num { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Etiquetas 3D: texto en color de tinta (contraste AA en ambos temas); el color semántico va en el borde. */
+  #etiquetas { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .etiqueta {
+    padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--borde); border-left: 3px solid var(--tenue);
+    color: var(--texto); font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums;
+    transition: opacity .18s;
+  }
+  /* Tapada por resolverEtiquetas(). */
+  .etiqueta.tapada { opacity: 0; }
+  body[data-captura] .etiqueta { transition: none; }   /* la captura no espera a un fundido */
+  .etiqueta.azul { border-left-color: var(--c-azul); }
+  .etiqueta.naranja { border-left-color: var(--c-naranja); }
+  .etiqueta.verde { border-left-color: var(--c-verde); }
+  .etiqueta.rojo { border-left-color: var(--c-rojo); }
+  .etiqueta.amarillo { border-left-color: var(--c-amarillo); }
+  .etiqueta.violeta { border-left-color: var(--c-violeta); }
+  .etiqueta.gris { border-left-color: var(--c-gris); }
+  body[data-formato=compacto] .etiqueta { font-size: 10.5px; padding: 1px 5px; border-left-width: 2px; }
+  /* opcional: true → fuera en compacto, donde no caben. */
+  body[data-formato=compacto] .etiqueta.opc { display: none; }
+
+  /* ── columna izquierda (completo) ── */
+  #izq {
+    position: fixed; top: 14px; left: 14px; bottom: 14px; width: 340px;
+    display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  }
+  #izq > * { pointer-events: auto; }
+  #cabecera { padding: 12px 16px 14px; }
+  #cabecera .antetitulo { margin: 0 0 2px; }
+  #cabecera h1 { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700; }
+  #cabecera .gancho { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--tenue); }
+  /* 6 columnas, cada cifra ocupa 2; según data-n (lo escribe cifra()) se reparten para que ninguna quede suelta: 1 ancha, 2 y 4 a mitades, 5 → 3 + 2. */
+  #cifras { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .cifra { grid-column: span 2; padding: 8px 10px; min-width: 0; }
+  #cifras[data-n="1"] .cifra { grid-column: span 6; }
+  #cifras[data-n="2"] .cifra, #cifras[data-n="4"] .cifra { grid-column: span 3; }
+  #cifras[data-n="5"] .cifra:nth-child(n+4) { grid-column: span 3; }
+  #cifras[data-n="4"] .cifra .valor { font-size: 20px; }
+  .cifra .valor { display: block; margin-top: 2px; font-size: 22px; font-weight: 600; line-height: 1.15; }
+  .cifra .valor small { font-size: 12px; font-weight: 500; color: var(--tenue); margin-left: 3px; }
+  .cifra .sub { display: block; font-size: 11px; color: var(--tenue); line-height: 1.3; }
+  #tarjeta-relato { padding: 12px 16px; font-size: 14px; line-height: 1.5; }
+  #tarjeta-relato b { font-weight: 650; font-variant-numeric: tabular-nums; }
+  #caja-grafico { margin-top: auto; padding: 10px 12px 8px; }
+  #caja-grafico canvas { display: block; width: 100%; height: 170px; margin-top: 4px; }
+
+  /* ── mandos (arriba a la derecha) ── */
+  #mandos { position: fixed; top: 14px; right: 14px; width: 262px; max-height: calc(100% - 28px); overflow-y: auto; padding: 10px 12px 12px; }
+  #botones-fijos { display: flex; justify-content: flex-end; gap: 6px; }
+  #cuerpo-mandos { margin-top: 8px; }
+  #cuerpo-mandos h2 { margin: 14px 0 6px; }
+  .grupo { margin: 10px 0; }
+  .grupo .rotulo { display: block; margin-bottom: 5px; }
+  /* Nunca cortan texto: si no caben en una fila, ajustarGrupos() añade .fil y pasan a rejilla de 2+ filas. */
+  .seg { display: flex; gap: 4px; }
+  .seg button { flex: 1; white-space: nowrap; }
+  .seg.fil { display: grid; grid-template-columns: repeat(var(--c), 1fr); }
+  .control { margin: 12px 0; }
+  .control label { display: flex; justify-content: space-between; font-size: 13px; color: var(--tenue); }
+  .control label b { color: var(--texto); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .control input[type=range] { width: 100%; margin: 6px 0 0; accent-color: var(--acento); }
+  .chips, .barra { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  button {
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; line-height: 1.3;
+    background: var(--boton); color: var(--texto); border: 1px solid var(--borde);
+  }
+  button:hover { background: var(--boton-hover); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  button.activo, button[aria-pressed=true] {
+    background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); font-weight: 600;
+  }
+  .btn-icono { width: 34px; height: 34px; padding: 0; font-size: 16px; }
+
+  /* ── barra inferior (compacto) ── */
+  #barra-inferior {
+    position: fixed; left: 10px; right: 10px; bottom: 10px; padding: 6px 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #presets-compacto { flex: 0 1 auto; min-width: 0; max-width: 62%; }
+  #barra-inferior .grupo { margin: 0; }
+  #barra-inferior .grupo .rotulo { display: none; }
+  #barra-inferior button { padding: 4px 9px; font-size: 12px; }
+  #relato-corto { flex: 1; min-width: 0; font-size: 12px; line-height: 1.35; }
+  #relato-corto b { font-weight: 650; }
+
+  /* ── por formato ── */
+  body[data-formato=completo] #barra-inferior { display: none; }
+  body[data-formato=compacto] #cifras, body[data-formato=compacto] #tarjeta-relato,
+  body[data-formato=compacto] #caja-grafico, body[data-formato=compacto] #cuerpo-mandos,
+  body[data-formato=compacto] #cabecera .antetitulo, body[data-formato=compacto] #cabecera .gancho { display: none; }
+  body[data-formato=compacto] #izq { bottom: auto; width: auto; }
+  body[data-formato=compacto] #cabecera { padding: 4px 10px; border-radius: 8px; }
+  body[data-formato=compacto] #cabecera h1 { font-size: 13px; }
+  body[data-formato=compacto] #mandos {
+    top: 10px; right: 10px; width: auto; padding: 0; overflow: visible;
+    background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  body[data-formato=compacto] .btn-icono { width: 28px; height: 28px; font-size: 14px; background: var(--panel); backdrop-filter: blur(6px); }
+  body[data-formato=compacto] .btn-icono:hover { background: var(--boton-hover); }
+
+  #ayuda { position: fixed; z-index: 5; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 14px 18px; min-width: 240px; max-width: 90%; font-size: 13px; }
+  #ayuda h2 { margin: 0 0 8px; }
+  #ayuda .nota { margin: 8px 0 0; max-width: 340px; color: var(--tenue); }   /* ayuda(html) */
+  #ayuda .arranque { margin: 8px 0 0; font-size: 11px; color: var(--tenue); }   /* «Arrancó en 1,2 s» */
+  #ayuda ul { margin: 0; padding: 0; list-style: none; }
+  #ayuda li { display: flex; gap: 10px; margin: 3px 0; }
+  #ayuda kbd { flex: none; min-width: 22px; text-align: center; padding: 0 5px; border: 1px solid var(--borde); border-radius: 5px; background: var(--boton); font: 12px ui-monospace, Menlo, Consolas, monospace; }
+  body[data-formato=compacto] #ayuda { font-size: 12px; padding: 10px 14px; }
+
+  /* ── modo exhibición («Solo la figura») ── */
+  /* left/right 0 + margen auto, no left: 50% + translate: con este el ancho disponible sería la mitad de la ventana. */
+  #mini { position: fixed; z-index: 4; left: 0; right: 0; margin: 0 auto; bottom: 14px; width: fit-content; max-width: calc(100% - 20px);
+          padding: 5px 6px; display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 10px; }
+  #mini .grupo { margin: 0; max-width: 100%; }
+  #mini .grupo .rotulo { display: none; }
+  #mini button { padding: 4px 10px; font-size: 12.5px; }
+  #mini .acciones { display: flex; gap: 4px; }
+  body[data-exhibicion] #mini { display: flex; }
+  body[data-exhibicion] #izq, body[data-exhibicion] #mandos, body[data-exhibicion] #barra-inferior,
+  body[data-exhibicion] #etiquetas, body[data-exhibicion] #ayuda { display: none; }
+
+  #fallo {
+    position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 9;
+    max-width: 620px; padding: 20px 24px; border-radius: 12px; display: none;
+    background: #2a1416; border: 1px solid #cc4455; color: #ffd7dc;
+  }
+  #fallo h2 { margin: 0 0 8px; font-size: 16px; color: #ff8fa0; }
+  #fallo code { display: block; margin-top: 10px; padding: 10px; border-radius: 6px;
+                background: rgba(0,0,0,.35); font-size: 12.5px; white-space: pre-wrap; }
+  #diag { position: fixed; left: -9999px; }   /* lo lee scripts/captura.sh, no se ve */
+</style>
+</head>
+<body data-tema="oscuro" data-formato="completo">
+
+<div id="lienzo"><div id="etiquetas"></div></div>
+
+<div id="izq">
+  <header id="cabecera" class="tarjeta">
+    <div class="antetitulo rotulo">Fisiología · Ciclo cardiaco</div>
+    <h1>Cómo bombea el corazón</h1>
+    <p class="gancho">El corazón lanza sangre 70 veces por minuto. Pero al empezar cada latido se aprieta y no sale ni una gota. ¿Qué está esperando?</p>
+  </header>
+  <div id="cifras"></div>
+  <div id="tarjeta-relato" class="tarjeta" hidden></div>
+  <div id="caja-grafico" class="tarjeta" hidden></div>
+</div>
+
+<div id="mandos" class="tarjeta">
+  <div id="botones-fijos">
+    <button id="btn-tema" class="btn-icono" title="Cambiar de tema (t)" aria-label="Cambiar de tema"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8a6.2 6.2 0 0 0 0 12.4z" fill="currentColor"/></svg></button>
+    <button id="btn-ayuda" class="btn-icono" title="Ayuda (?)" aria-label="Ayuda">?</button>
+    <button id="btn-pantalla" class="btn-icono" title="Pantalla completa (f)" aria-label="Pantalla completa"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+    <button id="btn-exhibicion" class="btn-icono" title="Solo la figura (v)" aria-label="Solo la figura" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 1.6l5.6 3.2v6.4L8 14.4l-5.6-3.2V4.8zM2.4 4.8L8 8l5.6-3.2M8 8v6.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
+  </div>
+  <div id="cuerpo-mandos">
+    <div id="controles"></div>
+    <h2 class="rotulo">Vista</h2>
+    <div id="vistas" class="barra"></div>
+  </div>
+</div>
+
+<div id="barra-inferior" class="tarjeta">
+  <div id="presets-compacto"></div>
+  <div id="relato-corto"></div>
+</div>
+
+<div id="mini" class="tarjeta" role="toolbar" aria-label="Solo la figura">
+  <div class="acciones" id="mini-acciones">
+    <button id="mini-vista" title="Volver a la vista inicial (0)">↺ Vista inicial</button>
+    <button id="mini-salir" title="Salir de «Solo la figura» (v o Esc)" aria-label="Salir de «Solo la figura»">✕ Salir</button>
+  </div>
+</div>
+
+<div id="ayuda" class="tarjeta" hidden></div>
+<div id="fallo"><h2>La escena no ha podido arrancar</h2><div id="fallo-txt"></div></div>
+<div id="diag">sin-arrancar</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+// ───────────────────────────────────────────────────────────────────────────
+//  ANDAMIAJE — normalmente no hace falta tocarlo. El contenido va más abajo.
+// ───────────────────────────────────────────────────────────────────────────
+const t0Modulo = performance.now();   // el arranque se mide de aquí al primer fotograma
+const diag = document.getElementById('diag');
+const caer = (e) => {
+  const msg = e?.message || String(e);
+  document.getElementById('fallo').style.display = 'block';
+  document.getElementById('fallo-txt').innerHTML =
+    (/Failed to fetch|dynamically imported|NetworkError|ERR_/i.test(msg)
+      ? 'Parece que no se ha podido descargar Three.js desde el CDN. Comprueba la conexión.'
+      : 'Ha fallado el guion de la escena.') + `<code>${msg}</code>`;
+  diag.textContent = 'ERROR ' + msg;
+};
+addEventListener('error', (e) => caer(e.error || e));
+addEventListener('unhandledrejection', (e) => caer(e.reason));
+
+const THREE = await import('three');
+const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+const { CSS2DRenderer, CSS2DObject } = await import('three/addons/renderers/CSS2DRenderer.js');
+
+const $ = (id) => document.getElementById(id);
+const url = new URLSearchParams(location.search);
+// `?t=` congela el tiempo; `?captura=1` corta el bucle tras unos fotogramas (cierre al final).
+const tFijo = url.has('t') ? parseFloat(url.get('t')) : null;
+const modoCaptura = url.get('captura') === '1';
+if (modoCaptura) document.body.dataset.captura = '';
+let exhibicion = url.get('exhibicion') === '1';
+
+// ── Números en formato español ────────────────────────────────────────────
+const formatos = {};
+function num(v, decimales = 1) {
+  const f = formatos[decimales] ??= new Intl.NumberFormat('es-CO',
+    { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+  return f.format(v);
+}
+
+// ── Temas ─────────────────────────────────────────────────────────────────
+// Colores SEMÁNTICOS: la escena pide 'azul' o 'base', nunca un hex. El tema claro va más oscuro para contrastar.
+const TEMAS = {
+  oscuro: {
+    fondo: 0x16181d, suelo: 0x22252c, base: 0x3b414b,
+    azul: 0x5aa2ff, naranja: 0xff9f4a, verde: 0x45c48f, rojo: 0xff6b6b,
+    amarillo: 0xf2c14e, violeta: 0xa98bff, gris: 0x6f7987, metal: 0xaab3c0,
+    hemiCielo: 0xffffff, hemiSuelo: 0x5b6270, hemi: 0.75, sol: 1.7,
+  },
+  claro: {
+    fondo: 0xeceef1, suelo: 0xdde0e5, base: 0xbfc5ce,
+    azul: 0x2a6bd1, naranja: 0xd96d16, verde: 0x1b8f5d, rojo: 0xd13a3a,
+    amarillo: 0xc99609, violeta: 0x7650d0, gris: 0x9099a6, metal: 0x8d97a4,
+    hemiCielo: 0xffffff, hemiSuelo: 0x9aa1ad, hemi: 0.85, sol: 1.5,
+  },
+};
+const clavesPropias = [];
+const alCambiarTemaFns = [];
+const SEMANTICOS = ['azul', 'naranja', 'verde', 'rojo', 'amarillo', 'violeta', 'gris'];
+const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+let tema = 'oscuro';
+// Mismas claves en los dos temas: un color que solo existe en uno sale `undefined` al conmutar y falla en silencio (material negro).
+function ampliarTemas({ claro, oscuro } = {}) {
+  if (!claro || !oscuro) throw new Error('ampliarTemas() necesita { claro: {…}, oscuro: {…} }');
+  const dif = (a, b, en, falta) => Object.keys(a).filter((k) => !(k in b)).map((k) => `"${k}" está en ${en} y falta en ${falta}`);
+  const problemas = [...dif(claro, oscuro, 'claro', 'oscuro'), ...dif(oscuro, claro, 'oscuro', 'claro'),
+    ...Object.keys(claro).filter((k) => k in TEMAS.claro).map((k) => `"${k}" ya existe en TEMAS y no se puede pisar (reservadas: ${Object.keys(TEMAS.claro).join(', ')})`)];
+  if (problemas.length) throw new Error('ampliarTemas(): ' + problemas.join('; '));
+  Object.assign(TEMAS.claro, claro); Object.assign(TEMAS.oscuro, oscuro);
+  clavesPropias.push(...Object.keys(claro));
+}
+function temaInicial() {
+  const f = url.get('tema');
+  if (f === 'claro' || f === 'oscuro') return f;
+  try { const g = localStorage.getItem('lab-tema'); if (g === 'claro' || g === 'oscuro') return g; } catch {}
+  return matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+const contenedor = $('lienzo');
+const escena = new THREE.Scene();
+escena.fog = new THREE.Fog(0x000000, 28, 55);
+const camara = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+
+// preserveDrawingBuffer solo en captura: WebGL vacía el lienzo tras componerlo y, al parar el bucle, el PNG saldría negro. Fuera de captura cuesta memoria.
+const render = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: modoCaptura });
+render.setSize(innerWidth, innerHeight);
+render.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+render.shadowMap.enabled = true;
+render.shadowMap.autoUpdate = false;   // las sombras solo se recalculan cuando algo se mueve
+contenedor.appendChild(render.domElement);
+
+const rotulos = new CSS2DRenderer({ element: $('etiquetas') });
+rotulos.setSize(innerWidth, innerHeight);
+diag.textContent = 'MONTADO three=' + THREE.REVISION;
+
+const orbita = new OrbitControls(camara, render.domElement);
+orbita.enableDamping = true;
+orbita.dampingFactor = 0.07;
+orbita.maxPolarAngle = Math.PI * 0.49;
+orbita.minDistance = 3; orbita.maxDistance = 40;
+
+// Hemisférica + sol con sombra, nada más: más luz ambiental aplana la escena.
+const hemi = new THREE.HemisphereLight(0xffffff, 0x666666, 0.8);
+const sol = new THREE.DirectionalLight(0xffffff, 1.6);
+sol.position.set(5, 9, 6);
+sol.castShadow = true;
+sol.shadow.mapSize.set(1024, 1024);
+sol.shadow.camera.left = sol.shadow.camera.bottom = -8;     // ajustar al tamaño de la maqueta
+sol.shadow.camera.right = sol.shadow.camera.top = 8;
+sol.shadow.camera.near = 1; sol.shadow.camera.far = 30;
+sol.shadow.radius = 3;
+sol.shadow.bias = -0.0005;
+escena.add(hemi, sol);
+
+const suelo = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ roughness: 1 }));
+suelo.rotation.x = -Math.PI / 2;
+suelo.position.y = -0.5;
+suelo.receiveShadow = true;
+escena.add(suelo);
+
+// Material con color semántico registrado: al cambiar de tema se recolorean todos.
+const materiales = [];
+function mat(clave, opciones = {}) {
+  const m = new THREE.MeshStandardMaterial({
+    roughness: 0.8, metalness: 0.05,
+    ...(clave === 'metal' ? { roughness: 0.5, metalness: 0.3 } : {}),   // sin mapa de entorno, más metalness sale negro
+    ...opciones, color: TEMAS[tema][clave],
+  });
+  materiales.push([m, clave]);
+  return m;
+}
+suelo.material = mat('suelo', { roughness: 1 });
+
+let coloresUI = null;   // se invalida en aplicarTema(): el gráfico lo pide en cada repintado
+function colorUI() {
+  if (coloresUI) return coloresUI;
+  const s = getComputedStyle(document.body);
+  const c = { texto: s.getPropertyValue('--texto').trim(), tenue: s.getPropertyValue('--tenue').trim(),
+              borde: s.getPropertyValue('--borde').trim(), fondo: hex(TEMAS[tema].fondo) };
+  for (const k of [...SEMANTICOS, ...clavesPropias]) c[k] = hex(TEMAS[tema][k]);
+  return coloresUI = c;
+}
+function aplicarTema(nuevo, guardar = false) {
+  tema = nuevo; coloresUI = null;
+  const T = TEMAS[tema];
+  document.body.dataset.tema = tema;
+  for (const k of SEMANTICOS) document.body.style.setProperty('--c-' + k, hex(T[k]));
+  escena.background = new THREE.Color(T.fondo);
+  escena.fog.color.setHex(T.fondo);
+  hemi.color.setHex(T.hemiCielo); hemi.groundColor.setHex(T.hemiSuelo);
+  hemi.intensity = T.hemi; sol.intensity = T.sol;
+  for (const [m, clave] of materiales) m.color.setHex(T[clave]);
+  for (const fn of alCambiarTemaFns) fn(tema, T);
+  if (guardar) { try { localStorage.setItem('lab-tema', tema); } catch {} }
+  sombrasSucias = true;
+  pedirFotograma();
+  if (arrancado) pintarGrafico();
+}
+
+// ── Render bajo demanda ───────────────────────────────────────────────────
+let pedido = true, sombrasSucias = true, arrancado = false;
+function pedirFotograma() { pedido = true; }
+orbita.addEventListener('change', pedirFotograma);
+
+// ── Estado: fuente única de verdad ────────────────────────────────────────
+let estado = null, anterior = null;
+const alCambiarFns = [];
+function requerirEstado(quien) {
+  if (!estado) throw new Error(`${quien}() se llamó antes que definirEstado(): declara el estado primero`);
+}
+// `?e=clave:valor,clave:valor` pisa el estado inicial (true/false y números se convierten).
+function definirEstado(inicial) {
+  estado = { ...inicial };
+  for (const par of (url.get('e') || '').split(',').filter(Boolean)) {
+    const i = par.indexOf(':'); if (i < 0) continue;
+    const k = par.slice(0, i).trim(), v = par.slice(i + 1).trim();
+    estado[k] = v === 'true' ? true : v === 'false' ? false : (v !== '' && !isNaN(+v)) ? +v : v;
+  }
+  anterior = null;
+}
+function cambiar(parcial) {
+  requerirEstado('cambiar');
+  anterior = estado; estado = { ...estado, ...parcial };
+  refrescar();
+}
+function alCambiar(fn) { alCambiarFns.push(fn); }
+// Para lo que mat() no recolorea (colores por instancia, etc.): fn(nombre, colores), colores = hex numéricos del tema activo (con los de ampliarTemas()).
+function alCambiarTema(fn) { alCambiarTemaFns.push(fn); fn(tema, TEMAS[tema]); }
+
+// ── Mandos ────────────────────────────────────────────────────────────────
+const grupos = [], deslizadores = [], capas = [], atajos = [];
+let elPrincipal = null;
+const el = (etiqueta, clase, html) => {
+  const e = document.createElement(etiqueta);
+  if (clase) e.className = clase;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+};
+
+// Botones segmentados. Opción = { texto, tecla?, valor?, fija? }:
+//   · `valor`: lo que toma la clave del grupo al pulsarla;
+//   · `fija: { clave: valor, … }`: fija además (o en vez de `valor`) varias claves a la vez, un preset sin valor centinela.
+//     El botón se marca activo cuando el estado coincide con TODO lo que fija. Ej.: { texto: 'Latido', fija: { latir: true } }.
+// { principal: true }: el grupo pasa a la barra inferior en compacto.
+// { exhibicion: true }: el grupo también sale en la mini barra de «Solo la figura» (vale para varios; sin ninguno, la mini barra no lo lleva).
+function efectoDeOpcion(clave, o) {
+  const r = { ...(o.valor !== undefined ? { [clave]: o.valor } : {}), ...(o.fija || {}) };
+  if (!Object.keys(r).length) throw new Error(`grupo("${clave}"): la opción "${o.texto}" necesita valor o fija`);
+  return r;
+}
+const opcionActiva = (r) => Object.entries(r).every(([k, v]) => String(estado[k]) === String(v));
+function grupo(rotulo, clave, opciones, { principal = false, exhibicion: enMini = false } = {}) {
+  requerirEstado('grupo');
+  const caja = el('div', 'grupo'), seg = el('div', 'seg');
+  seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', rotulo);
+  caja.append(el('span', 'rotulo', rotulo), seg);
+  const efectos = opciones.map((o) => efectoDeOpcion(clave, o));
+  const botones = opciones.map((o, i) => {
+    const b = el('button'); b.textContent = o.texto;
+    b.addEventListener('click', () => cambiar(efectos[i]));
+    seg.append(b);
+    if (o.tecla) atajos.push({ tecla: o.tecla, texto: `${rotulo}: ${o.texto}`, fn: () => cambiar(efectos[i]) });
+    return b;
+  });
+  const g = { clave, opciones, efectos, botones, botonesMini: [] };
+  grupos.push(g);
+  if (enMini) {
+    const cajaMini = el('div', 'grupo'), segMini = el('div', 'seg');
+    segMini.setAttribute('role', 'group'); segMini.setAttribute('aria-label', rotulo);
+    g.botonesMini = opciones.map((o, i) => {
+      const b = el('button'); b.textContent = o.texto;
+      b.addEventListener('click', () => cambiar(efectos[i]));
+      segMini.append(b);
+      return b;
+    });
+    cajaMini.append(segMini);
+    $('mini').insertBefore(cajaMini, $('mini-acciones'));
+  }
+  if (principal) elPrincipal = caja; else $('controles').append(caja);
+  if (principal) colocarPrincipal();
+  ajustarGrupos();
+}
+// Reparte cada grupo visible (panel, barra compacta, mini barra): una fila; si no cabe, 2, 3… filas parejas
+// (k = ceil(n / filas)), la primera disposición sin desbordes. Con filas desiguales (5 → 3 + 2) la rejilla usa
+// k·m columnas y la última fila columnas más anchas, sin hueco. Lo oculto (display: none) no se mide: se ajusta al mostrarse.
+function ajustarGrupos() {
+  const mcd = (a, b) => (b ? mcd(b, a % b) : a);
+  for (const seg of document.querySelectorAll('.seg')) {
+    const bs = [...seg.children], n = bs.length;
+    if (n < 2 || !seg.getClientRects().length) continue;
+    const cabe = () => seg.scrollWidth <= seg.clientWidth + 1 && bs.every((b) => b.scrollWidth <= b.clientWidth + 1);
+    const poner = (k) => {   // k botones por fila; 0 = todos en una fila (flex)
+      seg.classList.toggle('fil', k > 0);
+      const m = k ? n - k * (Math.ceil(n / k) - 1) : 0;   // botones de la última fila
+      const cols = k ? k * m / mcd(k, m) : 1;
+      seg.style.setProperty('--c', cols);
+      bs.forEach((b, i) => { const span = k ? cols / (i >= n - m ? m : k) : 1; b.style.gridColumn = span > 1 ? `span ${span}` : ''; });
+    };
+    poner(0);
+    for (let filas = 2, previo = n; filas <= n && !cabe(); filas++) {
+      const k = Math.ceil(n / filas);
+      if (k !== previo) poner(previo = k);
+    }
+  }
+}
+function colocarPrincipal() {
+  if (!elPrincipal) return;
+  if (document.body.dataset.formato === 'compacto') $('presets-compacto').append(elPrincipal);
+  else $('controles').prepend(elPrincipal);
+}
+// `tambien: { clave: valor }`: claves que se fijan junto con el valor al mover el deslizador (p. ej. { latir: false }
+// congela la animación en ese instante).
+// `mostrar: (e, v) => valor`: lo que enseñan mango y eco cuando no es estado[clave] a secas (p. ej. el instante del latido,
+// `v.ms`); se refresca con el texto vivo, y al arrastrar manda el mango.
+function deslizador(rotulo, clave, { min = 0, max = 1, paso = 0.01, formato = (v) => num(v, 2), tambien = {}, mostrar = null } = {}) {
+  requerirEstado('deslizador');
+  const d = el('div', 'control', `<label><span></span><b></b></label><input type="range" min="${min}" max="${max}" step="${paso}">`);
+  d.querySelector('span').textContent = rotulo;
+  const inp = d.querySelector('input');
+  inp.setAttribute('aria-label', rotulo);
+  inp.addEventListener('input', () => cambiar({ ...tambien, [clave]: +inp.value }));
+  deslizadores.push({ clave, formato, inp, mostrar, eco: d.querySelector('b') });
+  $('controles').append(d);
+}
+function capa(rotulo, clave, tecla) {
+  requerirEstado('capa');
+  let caja = $('controles').querySelector('.chips');
+  if (!caja) { caja = el('div', 'chips'); $('controles').append(caja); }
+  const b = el('button'); b.textContent = rotulo;
+  b.addEventListener('click', () => cambiar({ [clave]: !estado[clave] }));
+  caja.append(b);
+  capas.push({ clave, b });
+  if (tecla) atajos.push({ tecla, texto: `Capa: ${rotulo}`, fn: () => cambiar({ [clave]: !estado[clave] }) });
+}
+function pintarDeslizadores(soloVivos = false) {
+  for (const s of deslizadores) {
+    if (soloVivos && !s.mostrar) continue;
+    const v = s.mostrar ? s.mostrar(estado, derivadas) : estado[s.clave];
+    s.inp.value = v; s.eco.textContent = s.formato(v);
+  }
+}
+function pintarMandos() {
+  for (const g of grupos) g.efectos.forEach((r, i) => {
+    const on = opcionActiva(r);
+    for (const b of [g.botones[i], g.botonesMini[i]]) {
+      if (!b) continue;
+      b.classList.toggle('activo', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  });
+  pintarDeslizadores();
+  for (const c of capas) c.b.setAttribute('aria-pressed', String(!!estado[c.clave]));
+}
+
+// ── Cifras, relato, etiquetas y gráfico ───────────────────────────────────
+// Todas reciben (estado, derivadas): lo que devuelve vivo(t, e) (ver «Texto que sigue a la animación»), `{}` sin vivo.
+const cifras = [];
+function cifra(rotulo, fn) {
+  const c = el('div', 'cifra tarjeta', `<span class="rotulo"></span><span class="valor num"></span><span class="sub"></span>`);
+  c.querySelector('.rotulo').textContent = rotulo;
+  $('cifras').append(c);
+  $('cifras').dataset.n = cifras.length + 1;
+  cifras.push({ fn, valor: c.querySelector('.valor'), sub: c.querySelector('.sub') });
+}
+let fnRelato = null, fnRelatoCorto = null;
+function relato(fn) { fnRelato = fn; $('tarjeta-relato').hidden = false; }
+function relatoCorto(fn) { fnRelatoCorto = fn; }
+
+const etiquetas = [];
+// Etiqueta anclada a un objeto 3D; `texto`: string o función del estado.
+// `lado: 'izq' | 'der'`: a un costado del ancla en vez de centrada. `opcional: true`: fuera en compacto.
+// `prioridad` (0; mayor = más importante) manda cuando dos se pisan (resolverEtiquetas()).
+// Devuelve el CSS2DObject: `.visible = false` la quita del todo.
+function etiqueta(objeto, texto, { color = 'azul', alto = 0, lado = '', opcional = false, prioridad = 0 } = {}) {
+  const div = el('div', 'etiqueta ' + color + (opcional ? ' opc' : ''));
+  const obj = new CSS2DObject(div);
+  obj.position.y = alto;
+  if (lado) obj.center.set(lado === 'izq' ? 1.1 : -0.1, 0.5);
+  objeto.add(obj);
+  etiquetas.push({ div, texto, prioridad, tapada: false, t0: -Infinity });
+  return obj;
+}
+// Tras dibujar cada fotograma (una escena quieta no gasta nada) mide los rectángulos de las etiquetas visibles:
+//  · se tapa la que toca un panel o se sale de la ventana;
+//  · si dos se solapan, se tapa la de menor prioridad (a igual, gana la que ya se veía, luego la creada antes);
+//    una tapada nunca hace perder sitio a otra de mayor prioridad;
+//  · «tapar» es opacity → 0 (.tapada), no display: none, para seguir midiéndola y saber cuándo puede volver;
+//  · histéresis contra el parpadeo al girar: para taparse basta tocar (margen 0–2 px), para volver debe quedar
+//    despejada por 8–10 px, y cada etiqueta mantiene su estado ≥ 300 ms.
+// Cuesta ≈ una lectura de rectángulos por etiqueta y panel en cada fotograma dibujado.
+let elementosPanel = null;
+function resolverEtiquetas() {
+  if (exhibicion || !etiquetas.length) return;
+  elementosPanel ??= [...document.querySelectorAll('#izq > *, #mandos, #barra-inferior, #mini, #ayuda')];
+  const paneles = [];
+  for (const p of elementosPanel) { const r = p.getBoundingClientRect(); if (r.width && r.height) paneles.push(r); }
+  const W = innerWidth, H = innerHeight, lista = [], ahora = performance.now();
+  let pendiente = false;
+  for (const e of etiquetas) {
+    const r = e.div.getBoundingClientRect();
+    if (r.width) lista.push({ e, r });
+    else if (e.tapada) { e.tapada = false; e.div.classList.remove('tapada'); }   // oculta por la escena: se reinicia
+  }
+  lista.sort((a, b) => b.e.prioridad - a.e.prioridad || a.e.tapada - b.e.tapada);
+  const choca = (r, o, m) => r.left < o.right + m && r.right > o.left - m && r.top < o.bottom + m && r.bottom > o.top - m;
+  const puestas = [];
+  for (const { e, r } of lista) {
+    const mp = e.tapada ? 8 : 0, ml = e.tapada ? 10 : 2;
+    const cabe = r.left >= mp && r.top >= mp && r.right <= W - mp && r.bottom <= H - mp &&
+      !paneles.some((p) => choca(r, p, mp)) && !puestas.some((o) => choca(r, o, ml));
+    if (cabe) puestas.push(r);
+    if (e.tapada !== cabe) continue;
+    if (ahora - e.t0 < 300) { pendiente = true; continue; }   // permanencia mínima: sin parpadeo aunque el borde tiemble
+    e.tapada = !cabe; e.t0 = ahora; e.div.classList.toggle('tapada', e.tapada);
+  }
+  // Si se aplazó un cambio y la cámara ya se paró, un fotograma más lo aplica.
+  if (pendiente) setTimeout(pedirFotograma, 320);
+}
+
+const graficos = [];
+// fn(ctx, w, h, estado, colores, derivadas) dibuja en un canvas 2D en píxeles CSS (ya escalado por dpr).
+function grafico(rotulo, fn) {
+  const caja = $('caja-grafico');
+  caja.hidden = false;
+  caja.append(el('div', 'rotulo', ''));
+  caja.lastChild.textContent = rotulo;
+  const canvas = el('canvas');
+  canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', rotulo);
+  caja.append(canvas);
+  graficos.push({ fn, canvas });
+}
+function pintarGrafico() {
+  if (!estado || document.body.dataset.formato !== 'completo') return;
+  if (vivo && !vivoAlDia) calcularVivo();   // un gráfico pedido antes del primer refresco ya recibe sus derivadas
+  const dpr = Math.min(devicePixelRatio, 2);
+  const colores = colorUI();   // cacheado por tema: se pinta hasta ~30 veces por segundo con vivo
+  for (const g of graficos) {
+    const r = g.canvas.getBoundingClientRect();
+    if (!r.width) continue;
+    const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    if (g.canvas.width !== w || g.canvas.height !== h) { g.canvas.width = w; g.canvas.height = h; }
+    const ctx = g.canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, r.width, r.height);
+    g.fn(ctx, r.width, r.height, estado, colores, derivadas);
+  }
+}
+// Solo toca el DOM si el texto cambió: con vivo se llama ~9 veces por segundo y casi todo sale igual.
+function escribirSi(nodo, campo, valor) {
+  const k = '_ult_' + campo;
+  if (nodo[k] !== valor) { nodo[k] = valor; nodo[campo] = valor; }
+}
+function pintarTextos() {
+  const v = derivadas;
+  if (fnRelato) escribirSi($('tarjeta-relato'), 'innerHTML', fnRelato(estado, v));
+  if (fnRelatoCorto) escribirSi($('relato-corto'), 'innerHTML', fnRelatoCorto(estado, v));
+  for (const c of cifras) {
+    const r = c.fn(estado, v);
+    escribirSi(c.valor, 'innerHTML', `${r.valor}${r.unidad ? `<small>${r.unidad}</small>` : ''}`);
+    escribirSi(c.sub, 'textContent', r.sub || '');
+  }
+  for (const e of etiquetas) escribirSi(e.div, 'textContent', typeof e.texto === 'function' ? e.texto(estado, v) : e.texto);
+}
+// Longitud del texto visible ya renderizado, al final de la línea OK de #diag: captura.mjs la
+// lee para avisar de relatos largos, algo que el código no delata porque el texto depende del estado.
+let diagOK = '';
+const largoTexto = (id) => ($(id).textContent || '').replace(/\s+/g, ' ').trim().length;
+function medirTexto() {
+  if (diagOK) diag.textContent = `${diagOK} relato=${largoTexto('tarjeta-relato')} corto=${largoTexto('relato-corto')}` +
+    (exhibicion ? ' exhibicion=1' : '');
+}
+function refrescar() {
+  for (const fn of alCambiarFns) fn(estado, anterior);
+  calcularVivo();
+  pintarMandos(); pintarTextos(); pintarGrafico(); medirTexto();
+  sombrasSucias = true; pedirFotograma();
+}
+
+// ── Transiciones ──────────────────────────────────────────────────────────
+// Interpola propiedades numéricas de `objeto`; `alActualizar` (opcional) se llama en cada paso.
+// En captura y en el primer pintado se aplica de golpe, para que la imagen sea reproducible.
+const transiciones = [];
+function suavizar(objeto, destinos, ms = 400, alActualizar) {
+  if (!arrancado || modoCaptura || ms <= 0) {
+    Object.assign(objeto, destinos); alActualizar?.();
+    sombrasSucias = true; pedirFotograma(); return;
+  }
+  const previa = transiciones.findIndex((x) => x.objeto === objeto);
+  if (previa >= 0) transiciones.splice(previa, 1);
+  const desde = {};
+  for (const k in destinos) desde[k] = objeto[k];
+  transiciones.push({ objeto, desde, destinos, ms, alActualizar, t0: performance.now() });
+}
+function avanzarTransiciones() {
+  if (!transiciones.length) return false;
+  const ahora = performance.now();
+  for (let i = transiciones.length - 1; i >= 0; i--) {
+    const x = transiciones[i];
+    const p = Math.min(1, (ahora - x.t0) / x.ms);
+    const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
+    for (const k in x.destinos) x.objeto[k] = x.desde[k] + (x.destinos[k] - x.desde[k]) * e;
+    x.alActualizar?.();
+    if (p >= 1) transiciones.splice(i, 1);
+  }
+  return true;
+}
+
+// ── Formato, encuadre y vistas ────────────────────────────────────────────
+let formato = '';
+function calcularFormato() {
+  const f = url.get('formato');
+  if (f === 'compacto' || f === 'completo') return f;
+  return (document.fullscreenElement || (innerWidth >= 960 && innerHeight >= 540)) ? 'completo' : 'compacto';
+}
+// Zona de la pantalla que los paneles dejan libre para la figura.
+function zonaLibre() {
+  const W = innerWidth, H = innerHeight;
+  // Sin paneles: toda la ventana, salvo la franja de la mini barra para que no tape la figura.
+  if (exhibicion) return { x0: 0, x1: W, y0: 0, y1: $('mini').getBoundingClientRect().top - 6 };
+  if (formato === 'completo') {
+    const izq = $('izq').getBoundingClientRect(), der = $('mandos').getBoundingClientRect();
+    return { x0: izq.right + 8, x1: der.left - 8, y0: 0, y1: H };
+  }
+  return { x0: 0, x1: W, y0: 0, y1: $('barra-inferior').getBoundingClientRect().top - 4 };
+}
+// setViewOffset descentra la proyección en vez de mover el objetivo: la figura se recoloca en el
+// hueco libre y la órbita del ratón sigue girando en torno al centro de interés.
+function encuadrar() {
+  const W = innerWidth, H = innerHeight, z = zonaLibre();
+  camara.setViewOffset(W, H, -((z.x0 + z.x1) / 2 - W / 2), -((z.y0 + z.y1) / 2 - H / 2), W, H);
+}
+// Cada vista: { pos, mira } y, opcional:
+//  · `compacto: { pos, mira }`: encuadre propio del compacto (2:1, iframe de la nota); lo no indicado se hereda. Una figura alta
+//    que en el completo cabe justa puede necesitar otra distancia o centro;
+//  · `oculta: true`: sin botón ni atajo, usable con mirarDesde('clave') (p. ej. en alCambiar() al entrar en un modo de sección);
+//    puede crearse o recolocarse en cualquier momento.
+let VISTAS = {};
+const vistasVisibles = () => Object.keys(VISTAS).filter((k) => !VISTAS[k].oculta);
+const vistaBase = () => (VISTAS.inicial ? 'inicial' : vistasVisibles()[0]);
+// Relación ancho/alto de la zona libre para la que se eligen las vistas; un número, o uno por formato
+// ({ completo: 1.2, compacto: 2.2 }). Con la zona más estrecha la cámara se aleja para no perder ancho; con la más ancha no se acerca.
+let ASPECTO_BASE = 1.45;
+const aspectoBase = () => (typeof ASPECTO_BASE === 'number' ? ASPECTO_BASE : (ASPECTO_BASE[formato] ?? ASPECTO_BASE.completo ?? 1.45));
+let vistaActual = 'inicial';
+// El fov es vertical: al estrechar la zona libre se pierde ANCHO, no alto; la cámara se retira lo que haga falta.
+function factorDistancia() {
+  const z = zonaLibre();
+  const ancho = Math.max(80, z.x1 - z.x0), alto = Math.max(80, z.y1 - z.y0);
+  return Math.min(3, Math.max(1, (innerHeight / alto) * Math.max(1, aspectoBase() / (ancho / alto))));
+}
+let kVista = 1;   // factor de la última colocación de cámara
+function mirarDesde(clave) {
+  let v = VISTAS[clave]; if (!v) return;
+  if (formato === 'compacto' && v.compacto) v = { ...v, ...v.compacto };
+  vistaActual = clave;
+  const k = kVista = factorDistancia();
+  const mira = new THREE.Vector3(...(v.mira || [0, 0, 0]));
+  camara.position.set(...v.pos).sub(mira).multiplyScalar(k).add(mira);
+  orbita.target.copy(mira);
+  orbita.update();
+  document.querySelectorAll('[data-vista]').forEach((b) => b.classList.toggle('activo', b.dataset.vista === clave));
+  pedirFotograma();
+}
+function actualizarFormato() {
+  const nuevo = calcularFormato(), cambio = nuevo !== formato;
+  formato = nuevo;
+  document.body.dataset.formato = formato;
+  if (cambio) colocarPrincipal();
+  ajustarGrupos();
+  camara.aspect = innerWidth / innerHeight;
+  render.setSize(innerWidth, innerHeight);
+  rotulos.setSize(innerWidth, innerHeight);
+  encuadrar();
+  if (cambio && arrancado) mirarDesde(vistaActual);
+  pintarGrafico();
+  pedirFotograma();
+}
+addEventListener('resize', actualizarFormato);
+document.addEventListener('fullscreenchange', actualizarFormato);
+
+// ── Animación continua (opcional) ─────────────────────────────────────────
+// ANIMADA = true y actualizar = (t, e) => {...}, función PURA de t (con ?t= sale siempre el mismo fotograma).
+// SOMBRAS_ANIMADAS = false si lo que se mueve NO proyecta sombra (agua, llama, partículas, uniforme de shader): si no, el mapa
+// de sombras de TODA la escena se redibuja cada fotograma, el mayor gasto de GPU con miles de instancias. Si algo que sí
+// proyecta cambia fuera de una transición, marcarSombras().
+// ANIMADA puede cambiar en cualquier momento: el botón de pausa aparece y desaparece con ella, y al volver a animarse se reanuda.
+let ANIMADA = false, SOMBRAS_ANIMADAS = true, actualizar = (t, e) => {};
+function marcarSombras() { sombrasSucias = true; pedirFotograma(); }
+let pausado = tFijo !== null, t = tFijo ?? 0;
+
+// ── Texto que sigue a la animación (opcional) ─────────────────────────────
+// Con animación continua, cifras, relato, etiquetas y gráfico se quedarían congelados (solo se recalculan al cambiar el estado).
+// Para que sigan al movimiento: vivo = (t, e) => ({ ms: …, presion: … }), función PURA de (t, estado) como actualizar. Sus
+// valores llegan como último argumento a cifra(e, v), relato(e, v), relatoCorto(e, v), etiqueta(obj, (e, v) => …),
+// grafico(…, e, colores, v) y deslizador(…, { mostrar: (e, v) => … }). Es la única fuente de lo que cambia con t: la escena 3D
+// puede leer lo mismo (vivo(t, e)) y no se contradicen.
+// El DOM se refresca ≈ 9 veces por s y solo si el texto cambió; el gráfico, ≈ 30. En pausa, en «Solo la figura» y en captura
+// el texto es exacto al instante t (?t= incluido). vivo debe ser barata.
+let vivo = null, derivadas = {}, vivoAlDia = false;
+const TEXTO_MS = 110, GRAFICO_MS = 30;
+let tVivo = NaN, ultimoTexto = 0, ultimoGrafico = 0;
+function calcularVivo() {
+  derivadas = (vivo && estado ? vivo(t, estado) : null) || {};
+  tVivo = t; ultimoTexto = ultimoGrafico = performance.now(); vivoAlDia = true;
+}
+function seguirTexto() {   // en el bucle, tras actualizar()
+  if (!vivo || exhibicion) return;
+  const ahora = performance.now(), exacto = pausado || modoCaptura;
+  const texto = exacto || ahora - ultimoTexto >= TEXTO_MS, graf = exacto || ahora - ultimoGrafico >= GRAFICO_MS;
+  if (exacto ? t === tVivo : !texto && !graf) return;
+  derivadas = vivo(t, estado) || {}; tVivo = t;
+  if (texto) { pintarTextos(); pintarDeslizadores(true); ultimoTexto = ahora; }
+  if (graf) { pintarGrafico(); ultimoGrafico = ahora; }
+  if (exacto) medirTexto();
+}
+
+// ── Pedestal: base tipo banco de laboratorio; el suelo baja hasta su pie ──
+function pedestal({ ancho = 8, fondo = 5, alto = 0.5 } = {}) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(ancho, alto, fondo), mat('base'));
+  m.position.y = -alto / 2;
+  m.castShadow = m.receiveShadow = true;
+  suelo.position.y = -alto;
+  escena.add(m);
+  return m;
+}
+
+// ── Ayuda, tema y pantalla completa ───────────────────────────────────────
+// ayuda(html): párrafos al pie de la ayuda (supuestos del modelo, escalas…), en orden.
+const notasAyuda = [];
+let arranqueMs = 0;   // lo escribe el bucle
+function ayuda(html) { notasAyuda.push(html); }
+function pintarAyuda() {
+  const base = [['h / ?', 'Esta ayuda'], ['t', 'Cambiar tema'], ['f', 'Pantalla completa'], ['v', 'Solo la figura'], ['Esc', 'Salir de «Solo la figura»'], ['0', 'Vista inicial']];
+  const filas = [...base, ...atajos.filter((a) => !a.activo || a.activo()).map((a) => [a.tecla === ' ' ? 'Espacio' : a.tecla, a.texto])];
+  $('ayuda').innerHTML = '<h2 class="rotulo">Atajos</h2><ul>' +
+    filas.map(([k, txt]) => `<li><kbd>${k}</kbd><span>${txt}</span></li>`).join('') +
+    '</ul><p style="margin:8px 0 0;color:var(--tenue)">arrastrar: girar · rueda: acercar · botón derecho: desplazar</p>' +
+    notasAyuda.map((h) => `<p class="nota">${h}</p>`).join('') +
+    (arranqueMs ? `<p class="arranque">Arrancó en ${num(arranqueMs / 1000, 1)} s</p>` : '');
+}
+function alternarAyuda() { const a = $('ayuda'); if (a.hidden) pintarAyuda(); a.hidden = !a.hidden; pedirFotograma(); }
+async function pantallaCompleta() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch { window.open(location.href, '_blank'); }   // iframe sin permiso de pantalla completa
+}
+// «Solo la figura»: sin textos ni menús, con mini barra. La cámara conserva el ángulo; solo se acerca o aleja lo que pida la nueva zona libre.
+function alternarExhibicion(activar = !exhibicion, { volverFoco = true } = {}) {
+  exhibicion = !!activar;
+  if (exhibicion) $('ayuda').hidden = true;
+  document.body.toggleAttribute('data-exhibicion', exhibicion);
+  $('btn-exhibicion').setAttribute('aria-pressed', String(exhibicion));
+  ajustarGrupos();
+  if (arrancado) {
+    const k = factorDistancia();
+    camara.position.sub(orbita.target).multiplyScalar(k / kVista).add(orbita.target);
+    kVista = k;
+    orbita.update();
+    encuadrar();
+    medirTexto();
+    if (!exhibicion && vivo) { calcularVivo(); pintarTextos(); pintarDeslizadores(true); pintarGrafico(); }   // se puso al día mientras estaba oculto
+    pedirFotograma();
+    // Al entrar no se enfoca ningún botón: con el foco en «Salir», la barra espaciadora (pausa) lo pulsaría.
+    if (!exhibicion && volverFoco) $('btn-exhibicion').focus({ preventScroll: true });
+  }
+}
+$('btn-exhibicion').addEventListener('click', () => alternarExhibicion());
+$('mini-salir').addEventListener('click', () => alternarExhibicion(false));
+$('mini-vista').addEventListener('click', () => mirarDesde(vistaBase()));
+$('btn-tema').addEventListener('click', () => aplicarTema(tema === 'oscuro' ? 'claro' : 'oscuro', true));
+$('btn-ayuda').addEventListener('click', alternarAyuda);
+$('btn-pantalla').addEventListener('click', pantallaCompleta);
+addEventListener('keydown', (ev) => {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const k = ev.key;
+  if ((k === '?' || k === 'h') && !exhibicion) alternarAyuda();
+  else if (k === 'Escape' && !$('ayuda').hidden) { $('ayuda').hidden = true; pedirFotograma(); }
+  // En pantalla completa el primer Esc se lo queda el navegador (sale de la pantalla completa y ni
+  // llega aquí); el segundo sale de «Solo la figura». La guarda cubre a los navegadores que sí lo entregan.
+  else if (k === 'Escape' && exhibicion && !document.fullscreenElement) alternarExhibicion(false);
+  else if (k === 'v') alternarExhibicion();
+  else if (k === 't') $('btn-tema').click();
+  else if (k === 'f') pantallaCompleta();
+  else if (k === '0') mirarDesde(vistaBase());
+  else if (/^[1-9]$/.test(k) && atajos.every((a) => a.tecla !== k) && vistasVisibles()[k - 1] && !ev.target.matches?.('input[type=range]')) {
+    mirarDesde(vistasVisibles()[k - 1]);
+  } else atajos.find((a) => a.tecla === k)?.fn();
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+//  CONTENIDO — Cómo bombea el corazón (ciclo cardiaco).
+//  Un solo modelo (elastancia variable + Windkessel + válvulas diodo) se integra al arrancar y se
+//  tabula cada 1 ms. De esa tabla salen TODAS las cosas: forma de las cavidades, apertura de las
+//  válvulas, flechas de presión, partículas de sangre, cifras, relato, etiquetas y gráfico.
+//  Unidades internas: cm, mmHg, mL, s. Disposición esquemática en un plano frontal.
+// ───────────────────────────────────────────────────────────────────────────
+definirEstado({ latir: true, ms: 0, vista: 'dentro', sangre: true });   // ms solo cuenta con latir: false (instante congelado)
+
+// Tintes físicos del tejido (no son colores de leyenda): músculo, grasa epicárdica, arterias y venas
+// en la convención de los modelos anatómicos (rojo con O₂, azul sin), valvas y la sección del corte.
+ampliarTemas({
+  oscuro: { musculo: 0x9c5044, grasa: 0xd9b25e, vasoR: 0xc0473f, vasoA: 0x5d74b8, valva: 0xf1e6cc,
+            seccion: 0xd6b4a7, luz: 0x3a2020, soporte: 0x8f98a4, regla: 0xd9cba6, tinta: 0x2a2622 },
+  claro:  { musculo: 0xa04c40, grasa: 0xc99c3f, vasoR: 0xb0362e, vasoA: 0x4c62a8, valva: 0xeee2c4,
+            seccion: 0xd9b7a8, luz: 0x4a2a28, soporte: 0x8a93a0, regla: 0xe2d3a8, tinta: 0x2a2622 },
+});
+
+// ── 1. Modelo del ciclo ─────────────────────────────────────────────────────
+const FC = 70, T = 60 / FC, VEL = 0.2;          // latidos/min, periodo (s), cámara lenta ×5
+const hill = (x, a) => { const g1 = (x / a.t1) ** a.m1, g2 = (x / a.t2) ** a.m2; return g1 / (1 + g1) / (1 + g2); };
+function activacion(o) {   // doble Hill normalizada a 1 (Stergiopulos, Meister y Westerhof 1996)
+  const a = { tIni: 0, ...o }; let m = 0;
+  for (let x = 0; x < T; x += 0.0005) m = Math.max(m, hill(x, a));
+  a.k = 1 / m; return a;
+}
+const actv = (tc, a) => { let x = tc - a.tIni; if (x < 0) x += T; return a.k * hill(x, a); };
+const ACT_V = activacion({ t1: 0.16, m1: 1.4, t2: 0.32, m2: 26 });
+const ACT_A = activacion({ tIni: 0.75, t1: 0.05, m1: 2, t2: 0.1, m2: 10 });
+// E: elastancias (mmHg/mL), V0 (mL), R (mmHg·s/mL), C (mL/mmHg), P (mmHg). Ajustados a los valores de
+// reposo de un adulto (ver ayuda y nota): VI 123 → 49 mL, aorta 81/123, AP 10/24 mmHg.
+const PARAM = {
+  izq: { Evmin: 0.07, Evmax: 2.8, V0v: 5, Eamin: 0.15, Eamax: 0.22, V0a: 20, Pven: 9.5, Rven: 0.02, Rav: 0.006, Rsl: 0.01, Rper: 1.15, C: 1.25, Pfin: 5 },
+  der: { Evmin: 0.025, Evmax: 0.8, V0v: 10, Eamin: 0.07, Eamax: 0.11, V0a: 20, Pven: 4.4, Rven: 0.02, Rav: 0.004, Rsl: 0.004, Rper: 0.11, C: 3.0, Pfin: 7 },
+};
+const NMS = Math.round(T * 1000);   // muestras de la tabla, una por ms
+function simular(p) {
+  const DT = 0.0002, N = Math.round(T / DT), pasoTabla = Math.round(0.001 / DT);
+  const tab = {}; for (const k of ['Pv', 'Pat', 'Pa', 'Vv', 'Va', 'Qin', 'Qav', 'Qsl', 'act']) tab[k] = new Float32Array(NMS + 1);
+  let Vv = 110, Va = 60, Pa = 80;
+  for (let c = 0; c < 14; c++) for (let i = 0; i < N; i++) {
+    const tc = i * DT, aa = actv(tc, ACT_A);
+    const Pv = (p.Evmin + (p.Evmax - p.Evmin) * actv(tc, ACT_V)) * (Vv - p.V0v);
+    const Pat = (p.Eamin + (p.Eamax - p.Eamin) * aa) * (Va - p.V0a);
+    const Qin = (p.Pven - Pat) / p.Rven, Qav = Pat > Pv ? (Pat - Pv) / p.Rav : 0;
+    const Qsl = Pv > Pa ? (Pv - Pa) / p.Rsl : 0, Qout = (Pa - p.Pfin) / p.Rper;
+    if (c === 13 && i % pasoTabla === 0 && i / pasoTabla <= NMS) {
+      const j = i / pasoTabla;
+      Object.entries({ Pv, Pat, Pa, Vv, Va, Qin, Qav, Qsl, act: aa }).forEach(([k, v]) => { tab[k][j] = v; });
+    }
+    Vv += (Qav - Qsl) * DT; Va += (Qin - Qav) * DT; Pa += (Qsl - Qout) / p.C * DT;
+  }
+  for (const k in tab) tab[k][NMS] = tab[k][0];   // cierre periódico
+  // Volumen acumulado que ha cruzado la válvula de salida dentro del ciclo, normalizado para que
+  // en un ciclo sea exactamente el volumen latido: las partículas no derivan ciclo tras ciclo.
+  const sal = new Float32Array(NMS + 1);
+  for (let j = 1; j <= NMS; j++) sal[j] = sal[j - 1] + 0.5 * (tab.Qsl[j] + tab.Qsl[j - 1]) * 0.001;
+  const VL = Math.max(...tab.Vv) - Math.min(...tab.Vv);
+  for (let j = 0; j <= NMS; j++) sal[j] *= VL / sal[NMS];
+  tab.sal = sal;
+  // Apertura de las válvulas (0..1): abierta cuando pasa caudal, con 12 ms de inercia de las valvas.
+  const apert = (Q) => {
+    const a = new Float32Array(NMS + 1), obj = (q) => (q > 0.5 ? Math.min(1, 0.45 + q / 300) : 0);
+    let y = obj(Q[0]);
+    for (let vuelta = 0; vuelta < 2; vuelta++) for (let j = 0; j <= NMS; j++) { y += (obj(Q[j]) - y) * (1 - Math.exp(-1 / 12)); a[j] = y; }
+    return a;
+  };
+  tab.apAV = apert(tab.Qav); tab.apSL = apert(tab.Qsl);
+  const PaMin = Math.min(...tab.Pa);
+  tab.Vart = tab.Pa.map((P) => 25 + 0.25 * p.C * (P - PaMin));   // volumen de arteria que se ve en la maqueta
+  tab.VL = VL; tab.EDV = Math.max(...tab.Vv); tab.ESV = Math.min(...tab.Vv);
+  return tab;
+}
+const SIM = { izq: simular(PARAM.izq), der: simular(PARAM.der) };
+// Valor de la tabla en un instante del ciclo (s), interpolando entre milisegundos.
+function en(tab, clave, tc) {
+  const f = ((tc % T) + T) % T * 1000, j = Math.min(NMS - 1, Math.floor(f)), k = f - j, a = tab[clave];
+  return a[j] + (a[j + 1] - a[j]) * k;
+}
+// Instante → todo lo que necesitan cifras, relato y escena. Función única.
+function instante(ms) {
+  const tc = ms / 1000, L = SIM.izq, R = SIM.der, g = (tab, k) => en(tab, k, tc);
+  const r = {
+    ms, Pv: g(L, 'Pv'), Pa: g(L, 'Pa'), Pat: g(L, 'Pat'), Vv: g(L, 'Vv'), Qav: g(L, 'Qav'), Qsl: g(L, 'Qsl'), act: g(L, 'act'),
+    PvD: g(R, 'Pv'), PaD: g(R, 'Pa'), PatD: g(R, 'Pat'),
+    salido: g(L, 'sal'), apAV: g(L, 'apAV'), apSL: g(L, 'apSL'),
+  };
+  r.fase = r.Qsl > 0.5 ? 'expulsion' : r.Qav > 0.5 ? (r.act > 0.12 ? 'auricula' : 'llenado') : (tc < 0.2 || tc > 0.75 ? 'contraccion' : 'relajacion');
+  return r;
+}
+const EDV = SIM.izq.EDV, ESV = SIM.izq.ESV, VLAT = SIM.izq.VL;
+const APORTE = (() => {   // mL que añade la contracción auricular
+  const j0 = Math.round(ACT_A.tIni * 1000); let v = 0;
+  for (let j = j0; j < NMS; j++) v += SIM.izq.Qav[j] * 0.001 * (SIM.izq.act[j] > 0.12 ? 1 : 0);
+  return v;
+})();
+
+// ── 2. Anatomía esquemática: cavidades (elipsoides) y vasos (tubos), en cm ──────────────
+// x: hacia la izquierda del paciente (derecha de la pantalla), y: arriba, z: hacia delante.
+const CAMARAS = {
+  VI: { c: [2.9, -3.6, 0], r: [2.35, 4.3, 2.35], giro: 0.2, pared: 1.0, vent: true, lado: 'izq', clave: 'Vv' },
+  VD: { c: [-2.75, -3.0, 0.1], r: [2.0, 3.7, 2.8], giro: 0.14, pared: 0.5, vent: true, lado: 'der', clave: 'Vv' },
+  AI: { c: [5.2, 3.0, -0.4], r: [2.0, 1.8, 2.2], giro: 0.25, pared: 0.4, vent: false, lado: 'izq', clave: 'Va' },
+  AD: { c: [-5.2, 3.0, 0], r: [2.0, 1.9, 2.3], giro: -0.2, pared: 0.4, vent: false, lado: 'der', clave: 'Va' },
+};
+for (const C of Object.values(CAMARAS)) {
+  C.cs = Math.cos(C.giro); C.sn = Math.sin(C.giro);
+  C.Vref = SIM[C.lado][C.clave][0];   // la geometría se construye en el instante 0 (fin de diástole)
+}
+// Masa ventricular: solo da la forma exterior (un cono único con la punta del VI), no es cavidad.
+const MASA = { c: [0.8, -3.3, 0.1], r: [5.2, 4.9, 3.0], giro: 0.35 };
+MASA.cs = Math.cos(MASA.giro); MASA.sn = Math.sin(MASA.giro);
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+// Vasos: polilínea de la luz, radio de la luz, pared, sangre con O₂ o sin, y si su final está abierto.
+const VASOS = {
+  aorta:  { p: [[1.6, -1.6, 0], [1.45, 1, 0], [1.45, 5.8, 0], [2.1, 7.5, -0.3], [3.6, 8.1, -1.0], [5.1, 7.5, -1.9], [5.7, 6.4, -2.5]], r: 1.2, w: 0.35, o2: true },
+  pulmon: { p: [[-1.6, -1.2, 0.1], [-1.45, 1, 0], [-1.45, 4.8, 0], [-2.1, 6.2, -0.8], [-3.3, 6.8, -1.8]], r: 1.2, w: 0.3, o2: false },
+  cavaS:  { p: [[-5.5, 4.0, 0], [-5.7, 6.0, 0], [-5.8, 7.8, 0]], r: 0.95, w: 0.3, o2: false },
+  cavaI:  { p: [[-6.0, 2.2, 0], [-6.6, 0.4, 0], [-6.9, -2.6, 0]], r: 1.0, w: 0.3, o2: false },
+  pvSup:  { p: [[6.3, 3.7, -0.4], [7.6, 4.1, -0.4], [9.3, 4.4, -0.4]], r: 0.65, w: 0.3, o2: true },
+  pvInf:  { p: [[6.3, 2.5, -0.4], [7.6, 2.2, -0.4], [9.3, 1.8, -0.4]], r: 0.65, w: 0.3, o2: true },
+};
+// Paso de aurícula a ventrículo (el anillo donde se asientan mitral y tricúspide).
+const CONEX = {
+  mitral: { a: [4.4, 2.0, -0.2], b: [3.7, -0.8, 0], r: 1.5 },
+  tricus: { a: [-4.4, 2.0, 0], b: [-3.5, -0.8, 0.05], r: 1.55 },
+};
+// Músculos papilares (dentro del ventrículo, detrás del plano de corte): sujetan las cuerdas.
+const PAPILARES = [
+  { a: [4.3, -5.4, -1.0], b: [4.1, -3.3, -0.8], r: 0.42, cam: 'VI' },
+  { a: [2.2, -5.9, -1.0], b: [2.6, -3.7, -0.8], r: 0.42, cam: 'VI' },
+  { a: [-3.6, -5.0, -1.1], b: [-3.5, -3.1, -0.9], r: 0.34, cam: 'VD' },
+];
+
+// SDF (distancia con signo, negativa dentro): elipsoide aproximado, cápsula, unión suave.
+function sdElip(x, y, z, r) {
+  const k0 = Math.sqrt((x / r[0]) ** 2 + (y / r[1]) ** 2 + (z / r[2]) ** 2);
+  const k1 = Math.sqrt((x / (r[0] * r[0])) ** 2 + (y / (r[1] * r[1])) ** 2 + (z / (r[2] * r[2])) ** 2);
+  return k1 < 1e-9 ? -Math.min(...r) : k0 * (k0 - 1) / k1;
+}
+const aLocal = (C, x, y, z) => { const dx = x - C.c[0], dy = y - C.c[1]; return [C.cs * dx + C.sn * dy, -C.sn * dx + C.cs * dy, z - C.c[2]]; };
+function sdCamara(C, x, y, z) {
+  const dx = x - C.c[0], dy = y - C.c[1], lx = C.cs * dx + C.sn * dy, ly = -C.sn * dx + C.cs * dy, lz = z - C.c[2], r = C.r;
+  const k0 = Math.sqrt((lx / r[0]) ** 2 + (ly / r[1]) ** 2 + (lz / r[2]) ** 2);
+  const k1 = Math.sqrt((lx / (r[0] * r[0])) ** 2 + (ly / (r[1] * r[1])) ** 2 + (lz / (r[2] * r[2])) ** 2);
+  return k1 < 1e-9 ? -r[1] : k0 * (k0 - 1) / k1;
+}
+function sdSeg(x, y, z, a, b) {
+  const bx = b[0] - a[0], by = b[1] - a[1], bz = b[2] - a[2], px = x - a[0], py = y - a[1], pz = z - a[2];
+  const h = Math.max(0, Math.min(1, (px * bx + py * by + pz * bz) / (bx * bx + by * by + bz * bz)));
+  const ex = px - bx * h, ey = py - by * h, ez = pz - bz * h;
+  return Math.sqrt(ex * ex + ey * ey + ez * ez);
+}
+const sdPoli = (x, y, z, p) => { let d = Infinity; for (let i = 0; i < p.length - 1; i++) d = Math.min(d, sdSeg(x, y, z, p[i], p[i + 1])); return d; };
+const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+for (const V of Object.values(VASOS)) {   // plano del extremo abierto y luz prolongada más allá
+  const n = V.p.length, e = V.p[n - 1], d = V3(...e).sub(V3(...V.p[n - 2])).normalize();
+  V.fin = { e, d: d.toArray() };
+  V.luz = [...V.p, V3(...e).addScaledVector(d, 2).toArray()];
+}
+const planoFin = (V, x, y, z) => (x - V.fin.e[0]) * V.fin.d[0] + (y - V.fin.e[1]) * V.fin.d[1] + (z - V.fin.e[2]) * V.fin.d[2];
+// Cotas inferiores baratas (caja o esfera) para saltarse las primitivas lejanas: el campo se evalúa
+// cientos de miles de veces al arrancar y es lo que más tarda.
+function caja(pts, m) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], p[i] - m); hi[i] = Math.max(hi[i], p[i] + m); }
+  return { lo, hi };
+}
+const dCaja = (B, x, y, z) => { const a = Math.max(B.lo[0] - x, 0, x - B.hi[0]), b = Math.max(B.lo[1] - y, 0, y - B.hi[1]), c = Math.max(B.lo[2] - z, 0, z - B.hi[2]); return Math.sqrt(a * a + b * b + c * c); };
+for (const V of Object.values(VASOS)) { V.cajaL = caja(V.luz, V.r); V.cajaE = caja(V.p, V.r + V.w); }
+for (const X of Object.values(CONEX)) X.caja = caja([X.a, X.b], X.r + 0.45);
+for (const P of PAPILARES) P.caja = caja([P.a, P.b], P.r);
+for (const C of Object.values(CAMARAS)) C.rmax = Math.max(...C.r);
+const dMasa = (x, y, z) => { const a = x - MASA.c[0], b = y - MASA.c[1], c = z - MASA.c[2]; return Math.sqrt(a * a + b * b + c * c) - 5.2; };
+const dEsfera = (C, x, y, z) => { const a = x - C.c[0], b = y - C.c[1], c = z - C.c[2]; return Math.sqrt(a * a + b * b + c * c) - C.rmax; };
+const LADO_IZQ = ['VI', 'AI'], VASOS_IZQ = ['aorta', 'pvSup', 'pvInf'];
+const K_CAV = 0.6, K_EXT = 0.9;
+const L_CAM = Object.values(CAMARAS), L_CONEX = Object.values(CONEX);
+const L_VASOS = Object.entries(VASOS).map(([k, V]) => Object.assign(V, { izq: VASOS_IZQ.includes(k) }));
+function sdCavidad(x, y, z) {
+  let izq = smin(sdCamara(CAMARAS.VI, x, y, z), sdCamara(CAMARAS.AI, x, y, z), 0.5);
+  izq = smin(izq, sdSeg(x, y, z, CONEX.mitral.a, CONEX.mitral.b) - CONEX.mitral.r, 0.8);
+  let der = smin(sdCamara(CAMARAS.VD, x, y, z), sdCamara(CAMARAS.AD, x, y, z), 0.5);
+  der = smin(der, sdSeg(x, y, z, CONEX.tricus.a, CONEX.tricus.b) - CONEX.tricus.r, 0.8);
+  for (const V of L_VASOS) {
+    if (dCaja(V.cajaL, x, y, z) > (V.izq ? izq : der) + K_CAV) continue;
+    const d = sdPoli(x, y, z, V.luz) - V.r;
+    if (V.izq) izq = smin(izq, d, K_CAV); else der = smin(der, d, K_CAV);
+  }
+  return Math.min(izq, der);
+}
+function sdExterior(x, y, z) {
+  let d = Infinity;
+  for (const C of L_CAM) if (dEsfera(C, x, y, z) - C.pared < d + K_EXT) d = smin(d, sdCamara(C, x, y, z) - C.pared, K_EXT);
+  if (dMasa(x, y, z) < d + K_EXT) d = smin(d, sdCamara(MASA, x, y, z), K_EXT);
+  for (const X of L_CONEX) if (dCaja(X.caja, x, y, z) < d + K_EXT) d = smin(d, sdSeg(x, y, z, X.a, X.b) - X.r - 0.45, K_EXT);
+  for (const V of L_VASOS) if (dCaja(V.cajaE, x, y, z) < d + 0.7) d = smin(d, Math.max(sdPoli(x, y, z, V.p) - V.r - V.w, planoFin(V, x, y, z)), 0.7);
+  return d;
+}
+function sdMusculo(x, y, z) {
+  const ext = sdExterior(x, y, z);
+  let d = ext > 0.3 ? ext : Math.max(ext, -sdCavidad(x, y, z));   // fuera del corazón, la cavidad no cuenta
+  for (const P of PAPILARES) if (dCaja(P.caja, x, y, z) < d + 0.5) d = smin(d, sdSeg(x, y, z, P.a, P.b) - P.r, 0.5);
+  return d;
+}
+function sdVaso(V, x, y, z) { return Math.max(sdPoli(x, y, z, V.p) - V.r - V.w, planoFin(V, x, y, z)); }
+
+// ── 3. Malla del músculo: marching cubes UNA vez al arrancar, luego se deforma por vértice ──
+const { MarchingCubes } = await import('three/addons/objects/MarchingCubes.js');
+const { mergeVertices } = await import('three/addons/utils/BufferGeometryUtils.js');
+const ESC = 0.3;                                       // unidades de escena por cm
+const RES = 100, LADO = 21, CEN = [1.0, 0.0, 0.0];     // rejilla de 100³ sobre un cubo de 21 cm
+// Malla de una forma blanda: campo de distancia → marching cubes (una vez) → vértices unidos →
+// suavizado de Taubin (quita el escalonado de la rejilla sin encoger la forma) → normales.
+function mallaMC(sdf, cen, lado, res, zMax = Infinity) {
+  const mc = new MarchingCubes(res, new THREE.MeshBasicMaterial(), false, false, 260000);
+  mc.isolation = 0;
+  const h = lado / 2, coord = (i, c) => cen[c] + (i - res / 2) / (res / 2) * h;
+  // Tres niveles (cada 4 nodos, cada 2, cada 1): solo cerca de la superficie se evalúa el campo
+  // exacto; lejos basta interpolar, porque marching cubes solo necesita precisión junto a ella.
+  const sd = (x, y, z) => (Math.abs(z) > zMax ? Math.abs(z) - zMax + 0.5 : sdf(x, y, z));
+  function refinar(G, n, paso) {   // G: rejilla de n³ con nodos cada `paso` nodos finos
+    const m = Math.min(res, 2 * (n - 1) + 1), out = new Float32Array(m * m * m), lejos = (lado / res) * paso;
+    for (let k = 0; k < m; k++) {
+      const k0 = k >> 1, fk = (k & 1) * 0.5;
+      for (let j = 0; j < m; j++) {
+        const j0 = j >> 1, fj = (j & 1) * 0.5;
+        for (let i = 0; i < m; i++) {
+          const i0 = i >> 1, fi = (i & 1) * 0.5, q = i + j * m + k * m * m;
+          const g = (a, b2, c) => G[Math.min(n - 1, i0 + a) + Math.min(n - 1, j0 + b2) * n + Math.min(n - 1, k0 + c) * n * n];
+          const c000 = g(0, 0, 0);
+          if (!fi && !fj && !fk) { out[q] = c000; continue; }
+          const c100 = g(1, 0, 0), c010 = g(0, 1, 0), c110 = g(1, 1, 0), c001 = g(0, 0, 1), c101 = g(1, 0, 1), c011 = g(0, 1, 1), c111 = g(1, 1, 1);
+          const mn = Math.min(Math.abs(c000), Math.abs(c100), Math.abs(c010), Math.abs(c110), Math.abs(c001), Math.abs(c101), Math.abs(c011), Math.abs(c111));
+          if (mn > lejos) {
+            const x0 = c000 + (c100 - c000) * fi, x1 = c010 + (c110 - c010) * fi, x2 = c001 + (c101 - c001) * fi, x3 = c011 + (c111 - c011) * fi;
+            const y0 = x0 + (x1 - x0) * fj, y1 = x2 + (x3 - x2) * fj;
+            out[q] = y0 + (y1 - y0) * fk;
+          } else out[q] = sd(coord(i * (paso / 2), 0), coord(j * (paso / 2), 1), coord(k * (paso / 2), 2));
+        }
+      }
+    }
+    return { G: out, n: m };
+  }
+  const n4 = res / 4 + 1, G4 = new Float32Array(n4 * n4 * n4);
+  for (let k = 0; k < n4; k++) for (let j = 0; j < n4; j++) for (let i = 0; i < n4; i++) G4[i + j * n4 + k * n4 * n4] = sd(coord(4 * i, 0), coord(4 * j, 1), coord(4 * k, 2));
+  const G2 = refinar(G4, n4, 4), G1 = refinar(G2.G, G2.n, 2);
+  for (let q = 0; q < res * res * res; q++) mc.field[q] = -G1.G[q];
+  mc.update();
+  const n = mc.count, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n * 3; i += 3) {
+    pos[i] = cen[0] + mc.positionArray[i] * h; pos[i + 1] = cen[1] + mc.positionArray[i + 1] * h; pos[i + 2] = cen[2] + mc.positionArray[i + 2] * h;
+  }
+  mc.geometry.dispose();
+  let g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g = mergeVertices(g, 1e-4);
+  taubin(g, 4);
+  g.computeVertexNormals();
+  return g;
+}
+// Taubin: un paso de Laplaciano que encoge (λ) y otro que infla (μ); juntos alisan sin adelgazar paredes.
+function taubin(g, pasadas, lambda = 0.5, mu = -0.53) {
+  const p = g.attributes.position.array, idx = g.index.array, nv = p.length / 3;
+  const vec = Array.from({ length: nv }, () => new Set());
+  for (let i = 0; i < idx.length; i += 3) {
+    const a = idx[i], b = idx[i + 1], c = idx[i + 2];
+    vec[a].add(b); vec[a].add(c); vec[b].add(a); vec[b].add(c); vec[c].add(a); vec[c].add(b);
+  }
+  const lista = vec.map((s2) => Int32Array.from(s2)), tmp = new Float32Array(p.length);
+  const paso = (f) => {
+    for (let v = 0; v < nv; v++) {
+      const L = lista[v]; if (!L.length) { tmp.set(p.subarray(v * 3, v * 3 + 3), v * 3); continue; }
+      let x = 0, y = 0, z = 0; for (const u of L) { x += p[u * 3]; y += p[u * 3 + 1]; z += p[u * 3 + 2]; }
+      const k = 1 / L.length;
+      tmp[v * 3] = p[v * 3] + f * (x * k - p[v * 3]); tmp[v * 3 + 1] = p[v * 3 + 1] + f * (y * k - p[v * 3 + 1]); tmp[v * 3 + 2] = p[v * 3 + 2] + f * (z * k - p[v * 3 + 2]);
+    }
+    p.set(tmp);
+  };
+  for (let i = 0; i < pasadas; i++) { paso(lambda); paso(mu); }
+}
+const geoMusculo = mallaMC(sdMusculo, CEN, LADO, RES, 5.2);
+
+// Deformación: cada cavidad escala su interior (ventrículos anclados en la punta: la base baja al
+// contraerse) y fuera de ella el desplazamiento decae como 1/ρ², que conserva el volumen de la pared:
+// al vaciarse el ventrículo, su pared se engrosa sola. Todo se precalcula como dos vectores por
+// cámara y vértice; por fotograma solo se combinan con los factores de escala del instante.
+const NOMBRES_CAM = Object.keys(CAMARAS);
+function baseDeformacion(x, y, z, soloCam = null, CAMS = CAMARAS) {
+  const res = [], ws = [];
+  let suma = Math.exp(-2.2 / 0.7);   // peso de lo rígido (vasos lejos de las cámaras)
+  for (const nombre of NOMBRES_CAM) {
+    const C = CAMS[nombre];
+    if (soloCam && soloCam !== nombre) { ws.push(0); continue; }
+    const d = sdCamara(C, x, y, z), w = soloCam ? 1 : d < 0 ? 1e4 : Math.exp(-d / 0.7);
+    ws.push(w); suma += w;
+  }
+  if (soloCam) suma = 1;
+  NOMBRES_CAM.forEach((nombre, i) => {
+    const C = CAMS[nombre], w = ws[i] / suma;
+    if (w < 1e-4) { res.push(null); return; }
+    const l = aLocal(C, x, y, z), nx = l[0] / C.r[0], ny = l[1] / C.r[1], nz = l[2] / C.r[2];
+    const rho = Math.hypot(nx, ny, nz), fuera = rho > 1, s = fuera ? 1 / rho : 1, g = fuera ? 1 / (rho * rho) : 1;
+    const ay = C.vent ? -C.r[1] : 0;
+    const vx = l[0] * s * g, vy = (l[1] * s - ay) * g, vz = l[2] * s * g;
+    // vuelta a coordenadas del corazón (giro en z): P = R·(vx, 0, vz)·w, Q = R·(0, vy, 0)·w
+    res.push([C.cs * vx * w, C.sn * vx * w, vz * w, -C.sn * vy * w, C.cs * vy * w, 0]);
+  });
+  return res;
+}
+const escalas = { VI: [1, 1], VD: [1, 1], AI: [1, 1], AD: [1, 1] };   // [a (ancho), b (largo)] del instante
+function fijarEscalas(tc) {
+  for (const nombre of NOMBRES_CAM) {
+    const C = CAMARAS[nombre], s = en(SIM[C.lado], C.clave, tc) / C.Vref;
+    escalas[nombre] = C.vent ? [s ** 0.4, s ** 0.2] : [s ** (1 / 3), s ** (1 / 3)];
+  }
+}
+function desplazar(base, out) {   // base de baseDeformacion() → desplazamiento con las escalas actuales
+  out.set(0, 0, 0);
+  base.forEach((b, i) => {
+    if (!b) return;
+    const [a, bb] = escalas[NOMBRES_CAM[i]], ka = a - 1, kb = bb - 1;
+    out.x += ka * b[0] + kb * b[3]; out.y += ka * b[1] + kb * b[4]; out.z += ka * b[2];
+  });
+  return out;
+}
+// Cualquier geometría (músculo, vasos, coronarias) se deforma igual: se precalculan P y Q por
+// vértice y cámara, y se guarda la posición de reposo como atributo `aRef` (el relieve del tejido
+// se calcula sobre ella, así las fibras no «resbalan» sobre la superficie al latir).
+const deformables = [];
+function hacerDeformable(geo, CAMS, vista) {
+  const base = geo.attributes.position.array.slice(), n = base.length / 3;
+  const P = new Float32Array(n * 12), Q = new Float32Array(n * 8);
+  for (let v = 0; v < n; v++) {
+    const b2 = baseDeformacion(base[v * 3], base[v * 3 + 1], base[v * 3 + 2], null, CAMS);
+    b2.forEach((e, i) => { if (!e) return; P.set([e[0], e[1], e[2]], (v * 4 + i) * 3); Q.set([e[3], e[4]], (v * 4 + i) * 2); });
+  }
+  geo.setAttribute('aRef', new THREE.BufferAttribute(base, 3));
+  deformables.push({ geo, base, P, Q, n, vista });
+}
+function deformar(vista) {
+  const k = NOMBRES_CAM.map((nm) => [escalas[nm][0] - 1, escalas[nm][1] - 1]);
+  for (const d of deformables) {
+    if (d.vista !== vista) continue;
+    const p = d.geo.attributes.position.array, { base, P, Q } = d;
+    for (let v = 0; v < d.n; v++) {
+      let dx = 0, dy = 0, dz = 0;
+      for (let i = 0; i < 4; i++) {
+        const o3 = (v * 4 + i) * 3, o2 = (v * 4 + i) * 2, ka = k[i][0], kb = k[i][1];
+        dx += ka * P[o3] + kb * Q[o2]; dy += ka * P[o3 + 1] + kb * Q[o2 + 1]; dz += ka * P[o3 + 2];
+      }
+      p[v * 3] = base[v * 3] + dx; p[v * 3 + 1] = base[v * 3 + 1] + dy; p[v * 3 + 2] = base[v * 3 + 2] + dz;
+    }
+    d.geo.attributes.position.needsUpdate = true;
+  }
+}
+hacerDeformable(geoMusculo, CAMARAS, 'dentro');
+const posBase = geoMusculo.attributes.aRef.array;
+const NV = posBase.length / 3;
+
+// Color por vértice: músculo, grasa en los surcos, arterias y venas con su tinte, y un ruido suave.
+const tintes = new Float32Array(NV * 4);   // [vaso rojo, vaso azul, grasa, endocardio]
+{
+  const ruido = (x, y, z) => Math.sin(x * 1.7 + Math.sin(y * 1.3)) * Math.sin(y * 2.1 + z * 1.1) * Math.sin(z * 1.9 + x * 0.7);
+  for (let v = 0; v < NV; v++) {
+    const x = posBase[v * 3], y = posBase[v * 3 + 1], z = posBase[v * 3 + 2];
+    let dCam = Infinity; for (const C of Object.values(CAMARAS)) dCam = Math.min(dCam, sdCamara(C, x, y, z) - C.pared);
+    for (const X of Object.values(CONEX)) dCam = Math.min(dCam, sdSeg(x, y, z, X.a, X.b) - X.r - 0.45);
+    let vr = 0, va = 0;
+    for (const [k, V] of Object.entries(VASOS)) {
+      const w = Math.min(1, Math.max(0, (dCam - sdVaso(V, x, y, z)) / 0.9 + 0.3));
+      if (V.o2) vr = Math.max(vr, w); else va = Math.max(va, w);
+    }
+    const cav = sdCavidad(x, y, z), exterior = cav > 0.25 ? 1 : 0;
+    const dVI = sdCamara(CAMARAS.VI, x, y, z), dVD = sdCamara(CAMARAS.VD, x, y, z);
+    const surcoAV = Math.max(0, 1 - Math.abs(y - 0.9) / 1.3), surcoIV = y < 0.5 ? Math.max(0, 1 - Math.abs(dVI - dVD) / 1.1) : 0;
+    const grasa = exterior * (1 - Math.max(vr, va)) * Math.min(0.85, Math.max(surcoAV, surcoIV * 0.8)) * (0.75 + 0.25 * ruido(x * 2, y * 2, z * 2));
+    tintes.set([vr * exterior, va * exterior, grasa, exterior ? 0.06 * ruido(x, y, z) : -0.22 + 0.05 * ruido(x, y, z)], v * 4);
+  }
+}
+geoMusculo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NV * 3), 3));
+const _c = new THREE.Color(), _c2 = new THREE.Color();
+alCambiarTema((n, T) => {
+  const col = geoMusculo.attributes.color.array, M = new THREE.Color(T.musculo), R = new THREE.Color(T.vasoR),
+    A = new THREE.Color(T.vasoA), G = new THREE.Color(T.grasa);
+  for (let v = 0; v < NV; v++) {
+    const [vr, va, gr, luz] = tintes.subarray(v * 4, v * 4 + 4);
+    _c.copy(M);
+    if (vr > 0) _c.lerp(R, vr); if (va > 0) _c.lerp(A, va);
+    if (gr > 0) _c.lerp(G, gr);
+    const k = 1 + luz;   // interior algo más oscuro que el corte, para distinguir pared cortada y cavidad
+    col[v * 3] = _c.r * k; col[v * 3 + 1] = _c.g * k; col[v * 3 + 2] = _c.b * k;
+  }
+  geoMusculo.attributes.color.needsUpdate = true;
+});
+
+// ── 4. Materiales, corte con sección y entorno ──────────────────────────────────
+{
+  const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
+  const pmrem = new THREE.PMREMGenerator(render);
+  escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+}
+alCambiarTema((n, T) => { escena.environmentIntensity = 0.35; hemi.intensity = T.hemi * 0.65; });
+// Tejido: material físico húmedo (rugosidad media, barniz suave) con relieve procedural calculado
+// sobre la posición de reposo `aRef`: ruido de valor + estrías oblicuas (fibras), variación de tono,
+// y bump por derivadas de pantalla (sin UV: sirve para mallas de marching cubes y tubos).
+const GLSL_TEJIDO = `
+uniform float uRelieve, uFrec, uFib;
+varying vec3 vRef;
+float hshT(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float ruiT(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hshT(i), hshT(i + vec3(1,0,0)), f.x), mix(hshT(i + vec3(0,1,0)), hshT(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hshT(i + vec3(0,0,1)), hshT(i + vec3(1,0,1)), f.x), mix(hshT(i + vec3(0,1,1)), hshT(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+float alturaT(vec3 p) {
+  float n = 0.6 * ruiT(p * uFrec) + 0.3 * ruiT(p * uFrec * 2.3 + 3.1);
+  float fib = sin(dot(p, vec3(0.52, 0.74, 0.42)) * uFrec * 9.0 + n * 3.0);   // estrías oblicuas (fibras)
+  return 0.5 * n + uFib * 0.5 * fib;
+}
+vec3 perturbarT(vec3 pos, vec3 nrm, vec2 dH, float cara) {
+  vec3 sx = normalize(dFdx(pos)), sy = normalize(dFdy(pos)), r1 = cross(sy, nrm), r2 = cross(nrm, sx);
+  float det = dot(sx, r1) * cara;
+  return normalize(abs(det) * nrm - sign(det) * (dH.x * r1 + dH.y * r2));
+}`;
+function matTejido({ vertexColors = false, clave = null, rugosidad = 0.5, barniz = 0.4, relieve = 0.02, frec = 1.3, fibras = 1, seccion = false } = {}) {
+  const m = new THREE.MeshPhysicalMaterial({ vertexColors, roughness: rugosidad, metalness: 0, clearcoat: barniz, clearcoatRoughness: 0.35 });
+  if (clave) alCambiarTema((n, T) => m.color.setHex(T[clave]));
+  const u = { uRelieve: { value: relieve }, uFrec: { value: frec }, uFib: { value: fibras } };
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aRef;\nvarying vec3 vRef;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRef = aRef;');
+    let fs = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + GLSL_TEJIDO)
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= (0.86 + 0.26 * ruiT(vRef * uFrec * 0.4 + 7.7)) * (1.0 - 0.05 * uFib * alturaT(vRef));')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n{ float hh = alturaT(vRef) * uRelieve; normal = perturbarT(-vViewPosition, normal, vec2(dFdx(hh), dFdy(hh)), faceDirection); }');
+    if (seccion) {
+      sh.uniforms.uCorte = uCorte; sh.uniforms.uSeccion = uSeccion;
+      fs = 'uniform float uCorte;\nuniform vec3 uSeccion;\n' + fs.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        if (uCorte > 0.5 && !gl_FrontFacing) {
+          float raya = step(mod(gl_FragCoord.x - gl_FragCoord.y, 7.0), 1.4);
+          gl_FragColor = vec4(uSeccion * (1.0 - 0.1 * raya), 1.0);
+        }`);
+    }
+    sh.fragmentShader = fs;
+  };
+  m.customProgramCacheKey = () => 'tejido' + (seccion ? '-seccion' : '');
+  return m;
+}
+const mMusculo = matTejido({ vertexColors: true, rugosidad: 0.5, barniz: 0.35, relieve: 0.018, frec: 1.25, fibras: 1, seccion: true });
+render.localClippingEnabled = true;
+const planoCorte = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);   // conserva z ≤ 0: quita la mitad delantera
+const uCorte = { value: 0 }, uSeccion = { value: new THREE.Color() };
+alCambiarTema((n, T) => uSeccion.value.setHex(T.seccion, THREE.LinearSRGBColorSpace));
+mMusculo.clipShadows = true;
+
+
+const corazon = new THREE.Group();
+corazon.scale.setScalar(ESC);
+corazon.position.set(-0.3, 3.35, 0);
+escena.add(corazon);
+const musculo = new THREE.Mesh(geoMusculo, mMusculo);
+musculo.castShadow = musculo.receiveShadow = true;
+corazon.add(musculo);
+
+// ── 5. Válvulas: valvas que giran sobre su bisagra según la apertura del modelo ────────────
+const mValva = mat('valva', { side: THREE.DoubleSide, roughness: 0.5 });
+const VALVULAS = {
+  mitral:    { c: [4.05, 0.6, -0.1], lado: 'izq', tipo: 'av', hojas: 2, giro0: Math.PI / 2, largo: 1.25, r: 1.45 },
+  aortica:   { c: [1.45, 1.1, 0], lado: 'izq', tipo: 'sl', hojas: 3, giro0: Math.PI / 2, largo: 1.0, r: 1.15, eje: [0, 1, 0] },
+  tricuspide:{ c: [-3.95, 0.6, 0.02], lado: 'der', tipo: 'av', hojas: 3, giro0: Math.PI / 2, largo: 1.25, r: 1.5 },
+  pulmonar:  { c: [-1.45, 1.3, 0], lado: 'der', tipo: 'sl', hojas: 3, giro0: Math.PI / 2, largo: 1.0, r: 1.15, eje: [0, 1, 0] },
+};
+VALVULAS.mitral.eje = V3(...CONEX.mitral.b).sub(V3(...CONEX.mitral.a)).normalize().toArray();
+VALVULAS.tricuspide.eje = V3(...CONEX.tricus.b).sub(V3(...CONEX.tricus.a)).normalize().toArray();
+const NU = 12, NVV = 8;
+for (const [nombre, Vv] of Object.entries(VALVULAS)) {
+  const n = V3(...Vv.eje), e1 = new THREE.Vector3(0, 0, 1).cross(n).normalize(), e2 = n.clone().cross(e1).normalize();
+  Vv.n = n; Vv.e1 = e1; Vv.e2 = e2;
+  Vv.base = baseDeformacion(...Vv.c);
+  Vv.hojasM = [];
+  for (let h = 0; h < Vv.hojas; h++) {
+    const g = new THREE.PlaneGeometry(1, 1, NU - 1, NVV - 1);
+    const m = new THREE.Mesh(g, mValva); m.castShadow = true; m.frustumCulled = false;
+    corazon.add(m); Vv.hojasM.push(m);
+  }
+}
+const _n = new THREE.Vector3(), _d = new THREE.Vector3(), _h = new THREE.Vector3(), _e = new THREE.Vector3(), _v = new THREE.Vector3();
+// Una valva: franja angular del anillo; cada «radio» gira sobre la bisagra de φ≈−12° (cerrada, en
+// cúpula hacia atrás) a φ≈82° (abierta, contra la pared). En las AV, lo que sobra del radio al
+// cerrarse forma la zona de coaptación, que apunta hacia el ventrículo.
+function colocarValva(Vv, apertura) {
+  const c = desplazar(Vv.base, _v).add(V3(...Vv.c)), R = Vv.r, L = Vv.largo * R;
+  const phi = (-12 + 94 * apertura) * Math.PI / 180, hueco = Vv.tipo === 'av' ? 0.05 : 0.03;
+  Vv.cActual = c.clone();
+  Vv.hojasM.forEach((m, h) => {
+    const p = m.geometry.attributes.position.array;
+    const a0 = Vv.giro0 + (h / Vv.hojas) * Math.PI * 2 + hueco, a1 = Vv.giro0 + ((h + 1) / Vv.hojas) * Math.PI * 2 - hueco;
+    for (let j = 0; j < NVV; j++) for (let i = 0; i < NU; i++) {
+      const u = i / (NU - 1), v = j / (NVV - 1), th = a0 + (a1 - a0) * u;
+      _e.copy(Vv.e1).multiplyScalar(Math.cos(th)).addScaledVector(Vv.e2, Math.sin(th));
+      _h.copy(c).addScaledVector(_e, R);
+      const borde = Math.sin(Math.PI * u);                     // el borde libre es más largo en el centro de la valva
+      const s = v * L * (0.55 + 0.45 * borde), s1 = Math.min(s, R * 0.98), s2 = Math.max(0, s - R * 0.98);
+      _d.copy(_e).multiplyScalar(-Math.cos(phi)).addScaledVector(Vv.n, Math.sin(phi));
+      const bomb = (Vv.tipo === 'sl' ? 0.22 : 0.12) * R * Math.sin(Math.PI * v) * (1 - apertura) * borde;
+      _h.addScaledVector(_d, s1).addScaledVector(Vv.n, s2 - bomb);
+      p.set([_h.x, _h.y, _h.z], (j * NU + i) * 3);
+    }
+    m.geometry.attributes.position.needsUpdate = true;
+    m.geometry.computeVertexNormals();
+    Vv.puntas ??= [];
+    Vv.puntas[h] = [0.25, 0.5, 0.75].map((u) => { const q = (NVV - 1) * NU + Math.round(u * (NU - 1)); return V3(p[q * 3], p[q * 3 + 1], p[q * 3 + 2]); });
+  });
+}
+// Cuerdas tendinosas: del borde libre de mitral y tricúspide a la punta de su papilar.
+const cuerdas = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ transparent: true, opacity: 0.8 }));
+cuerdas.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 2 * 3 * 5), 3));
+cuerdas.frustumCulled = false;
+corazon.add(cuerdas);
+alCambiarTema((n, T) => cuerdas.material.color.setHex(T.valva));
+for (const P of PAPILARES) P.base = baseDeformacion(...P.b, P.cam);
+function colocarCuerdas() {
+  const p = cuerdas.geometry.attributes.position.array; let o = 0;
+  const tips = PAPILARES.map((P) => desplazar(P.base, new THREE.Vector3()).add(V3(...P.b)));
+  const unir = (a, b) => { p.set([a.x, a.y, a.z, b.x, b.y, b.z], o); o += 6; };
+  VALVULAS.mitral.puntas.forEach((hoja, h) => hoja.forEach((q) => unir(q, tips[h])));
+  VALVULAS.tricuspide.puntas.forEach((hoja) => hoja.forEach((q) => unir(q, tips[2])));
+  cuerdas.geometry.setDrawRange(0, o / 3);
+  cuerdas.geometry.attributes.position.needsUpdate = true;
+}
+
+// ── 6. Flechas de presión: empujan desde el lado de más presión; largo ∝ √|ΔP| ────────────
+const mFlecha = mat('naranja', { depthTest: false, transparent: true, opacity: 0.95 });
+function flecha() {
+  const g = new THREE.Group();
+  const asta = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1, 12).translate(0, 0.5, 0), mFlecha);
+  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.36, 0.7, 16).translate(0, 0.35, 0), mFlecha);
+  asta.renderOrder = punta.renderOrder = 6;
+  g.add(asta, punta);
+  g.largo = (l) => { const a = Math.max(l - 0.7, 0.01); asta.scale.y = a; punta.position.y = a; };
+  corazon.add(g);
+  return g;
+}
+for (const Vv of Object.values(VALVULAS)) Vv.flecha = flecha();
+const _up = new THREE.Vector3(0, 1, 0), _q = new THREE.Quaternion();
+function colocarFlecha(Vv, dP) {
+  // largo mínimo de 1,9 cm: se lee aunque ΔP sea de 2 mmHg (dicho en la ayuda)
+  const l = 1.9 + 2.1 * Math.min(1, Math.sqrt(Math.abs(dP) / 60)), dir = dP >= 0 ? 1 : -1;
+  // la punta toca la valva: desde aguas arriba si empuja a abrir, desde aguas abajo si la cierra
+  const hasta = Vv.cActual.clone().addScaledVector(Vv.n, dir > 0 ? -0.15 : Vv.r * 0.45);
+  const desde = hasta.clone().addScaledVector(Vv.n, -dir * l);
+  Vv.flecha.position.copy(desde);
+  Vv.flecha.quaternion.copy(_q.setFromUnitVectors(_up, _d.copy(Vv.n).multiplyScalar(dir)));
+  Vv.flecha.largo(l);
+}
+
+// ── 7. Sangre: partículas que avanzan con el volumen que cruza cada válvula ──────────────
+// Cada partícula lleva una etiqueta L (mL de sangre que entraron antes que ella). Con los volúmenes
+// acumulados del modelo se sabe en qué tramo está y a qué fracción de su recorrido: si una válvula
+// está cerrada, su contador no avanza y las partículas de ese tramo se quedan quietas.
+const DV = 2;   // mL por partícula
+const RUTAS = {
+  izq: {
+    venas: [[[9.3, 4.4, -0.4], [7.6, 4.1, -0.4], [6.4, 3.7, -0.4]], [[9.3, 1.8, -0.4], [7.6, 2.2, -0.4], [6.4, 2.5, -0.4]]], rVena: 0.4,
+    auri: [[6.2, 3.1, -0.4], [5.5, 3.3, -0.4], [4.8, 2.8, -0.3], [4.2, 1.6, -0.2]], rAuri: 1.35, cAuri: 'AI',
+    vent: [[3.95, 0.2, -0.1], [3.9, -2.4, 0], [3.3, -5.4, 0], [2.3, -5.6, 0], [1.9, -3.2, 0], [1.6, -0.9, 0], [1.45, 0.9, 0]], rVent: 1.25, cVent: 'VI',
+    arteria: VASOS.aorta.p.slice(1), rArt: 0.75,
+  },
+  der: {
+    venas: [[[-5.8, 7.8, 0], [-5.7, 6.0, 0], [-5.5, 4.2, 0]], [[-6.9, -2.6, 0], [-6.6, 0.4, 0], [-6.0, 2.0, 0]]], rVena: 0.55,
+    auri: [[-5.6, 3.4, 0], [-5.4, 3.0, 0], [-4.8, 2.6, 0], [-4.2, 1.6, 0]], rAuri: 1.4, cAuri: 'AD',
+    vent: [[-3.9, 0.2, 0], [-3.8, -2.4, 0], [-3.1, -5.1, 0], [-2.1, -5.0, 0], [-1.8, -3.0, 0], [-1.55, -1.0, 0], [-1.45, 1.1, 0]], rVent: 1.15, cVent: 'VD',
+    arteria: VASOS.pulmon.p.slice(1), rArt: 0.75,
+  },
+};
+const curva = (pts) => new THREE.CatmullRomCurve3(pts.map((p) => V3(...p)), false, 'centripetal');
+const hash = (k, s) => { const x = Math.sin(k * 12.9898 + s * 78.233) * 43758.5453; return x - Math.floor(x); };
+const mSangre = { izq: mat('rojo', { roughness: 0.35 }), der: mat('azul', { roughness: 0.35 }) };
+const R_GOTA = 0.22, geoGota = new THREE.SphereGeometry(R_GOTA, 10, 8);
+for (const [lado, R] of Object.entries(RUTAS)) {
+  R.cVenas = R.venas.map(curva); R.cA = curva(R.auri); R.cV = curva(R.vent); R.cArt = curva(R.arteria);
+  R.malla = new THREE.InstancedMesh(geoGota, mSangre[lado], 420);
+  R.malla.frustumCulled = false; R.malla.count = 0;
+  corazon.add(R.malla);
+}
+const _m4 = new THREE.Matrix4(), _p = new THREE.Vector3(), _t = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3();
+// Punto de una ruta con desplazamiento lateral fijo por partícula, siempre hacia atrás (z ≤ 0) para
+// que se vea en el corte; `perfil` estrecha la nube en los extremos (entrada y salida del tramo).
+function puntoRuta(cv, f, k, radio, perfil = true) {
+  cv.getPointAt(f, _p); cv.getTangentAt(f, _t);
+  _a.set(0, 0, 1).cross(_t); if (_a.lengthSq() < 1e-6) _a.set(1, 0, 0); _a.normalize();
+  _b.copy(_t).cross(_a).normalize();
+  const ang = hash(k, 1) * Math.PI * 2, rr = radio * Math.sqrt(hash(k, 2)) * (perfil ? 0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, Math.max(0, f))) : 1);
+  _p.addScaledVector(_a, Math.cos(ang) * rr).addScaledVector(_b, Math.sin(ang) * rr);
+  _p.z = -R_GOTA - 0.05 - Math.abs(_p.z) * 0.8;   // detrás del plano de corte: una gota partida se vería hueca
+  return _p;
+}
+const basePart = {};
+function colocarSangre(tAbs) {
+  const n = Math.floor(tAbs / T), tc = tAbs - n * T;
+  for (const [lado, R] of Object.entries(RUTAS)) {
+    const S = SIM[lado], Bsal = n * S.VL + en(S, 'sal', tc);
+    const Bav = Bsal + en(S, 'Vv', tc), Bin = Bav + en(S, 'Va', tc), Bfin = Bsal - en(S, 'Vart', tc), VVEN = 10;
+    const k0 = Math.ceil(Bfin / DV), k1 = Math.floor((Bin + VVEN) / DV);
+    let i = 0;
+    for (let k = k0; k <= k1 && i < 420; k++) {
+      const L = k * DV;
+      let p, cam = null;
+      if (L > Bin) p = puntoRuta(R.cVenas[k & 1], 1 - (L - Bin) / VVEN, k, R.rVena, false);
+      else if (L > Bav) { p = puntoRuta(R.cA, (Bin - L) / (Bin - Bav), k, R.rAuri); cam = R.cAuri; }
+      else if (L > Bsal) { p = puntoRuta(R.cV, (Bav - L) / (Bav - Bsal), k, R.rVent); cam = R.cVent; }
+      else p = puntoRuta(R.cArt, (Bsal - L) / (Bsal - Bfin), k, R.rArt, false);
+      if (cam) {   // el interior de la cavidad se escala con ella
+        const b = baseDeformacion(p.x, p.y, p.z, cam);
+        p.add(desplazar(b, _v));
+      }
+      _m4.makeTranslation(p.x, p.y, p.z);
+      R.malla.setMatrixAt(i++, _m4);
+    }
+    R.malla.count = i;
+    R.malla.instanceMatrix.needsUpdate = true;
+  }
+}
+
+const _upY = new THREE.Vector3(0, 1, 0), _vg = new THREE.Vector3(), _m4g = new THREE.Matrix4(), _sg = new THREE.Vector3();
+
+// ── 4b. «Por fuera»: anatomía aproximada de la cara anterior ────────────────────────────
+// Otra malla, con la disposición real: punta abajo y a la izquierda del paciente (derecha de la
+// pantalla), ventrículo derecho por delante, orejuelas, surcos con grasa y coronarias, y los grandes
+// vasos cruzados (tronco pulmonar por delante y a la izquierda de la aorta). La del corte sigue
+// esquemática. Las «cavidades» de aquí no se ven: solo sirven para deformar la pared con el latido.
+const CAMARAS_EXT = {
+  VI: { c: [1.9, -3.3, -0.5], r: [2.1, 3.9, 2.0], giro: 0.42, pared: 1.1, vent: true },
+  VD: { c: [-1.0, -2.4, 1.1], r: [2.8, 3.4, 1.95], giro: 0.55, pared: 0.55, vent: true },
+  AI: { c: [0.8, 2.7, -2.7], r: [2.3, 1.45, 1.5], giro: 0.0, pared: 0.4, vent: false },
+  AD: { c: [-3.8, 2.3, 0.1], r: [1.7, 2.0, 1.8], giro: -0.15, pared: 0.4, vent: false },
+};
+for (const C of Object.values(CAMARAS_EXT)) { C.cs = Math.cos(C.giro); C.sn = Math.sin(C.giro); C.rmax = Math.max(...C.r); }
+const OREJUELAS = [
+  { c: [-2.0, 3.3, 2.0], r: [1.7, 0.85, 0.75], giro: -0.35 },   // derecha: abraza la raíz de la aorta
+  { c: [2.75, 1.85, 1.35], r: [1.5, 0.72, 0.85], giro: 0.8 },   // izquierda: asoma junto al tronco pulmonar
+];
+for (const C of OREJUELAS) { C.cs = Math.cos(C.giro); C.sn = Math.sin(C.giro); }
+const CONO = { a: [-0.4, -0.8, 1.9], b: [0.35, 1.0, 2.2], r: 1.45 };      // infundíbulo del VD hacia la pulmonar
+const RAIZ = { a: [-0.5, -0.4, 0.5], b: [-0.6, 1.2, 0.7], r: 1.4 };       // raíz aórtica
+const sdVentExt = (x, y, z) => smin(smin(sdCamara(CAMARAS_EXT.VI, x, y, z) - 1.1, sdCamara(CAMARAS_EXT.VD, x, y, z) - 0.55, 1.3), sdSeg(x, y, z, CONO.a, CONO.b) - CONO.r, 1.0);
+function sdAuriExt(x, y, z) {
+  let d = smin(sdCamara(CAMARAS_EXT.AD, x, y, z) - 0.4, sdCamara(CAMARAS_EXT.AI, x, y, z) - 0.4, 0.9);
+  for (const O of OREJUELAS) {   // borde festoneado de la orejuela: una ondulación pequeña
+    const l = aLocal(O, x, y, z);
+    d = smin(d, sdElip(l[0], l[1], l[2], O.r) + 0.06 * Math.sin(l[0] * 6.0) * Math.sin(l[2] * 5.0), 0.45);
+  }
+  return smin(d, sdSeg(x, y, z, RAIZ.a, RAIZ.b) - RAIZ.r, 0.6);
+}
+// El surco (AV e interventricular) nace solo: la unión suave con k pequeño deja un pliegue.
+const sdCorazonExt = (x, y, z) => smin(sdVentExt(x, y, z), sdAuriExt(x, y, z), 0.45);
+const geoExt = mallaMC(sdCorazonExt, [0.3, -1.2, 0], 17, 84);
+for (const nm of NOMBRES_CAM) Object.assign(CAMARAS_EXT[nm], { lado: CAMARAS[nm].lado, clave: CAMARAS[nm].clave });
+hacerDeformable(geoExt, CAMARAS_EXT, 'fuera');
+const exterior = new THREE.Group();
+corazon.add(exterior);
+const mMioExt = matTejido({ clave: 'musculo', rugosidad: 0.42, barniz: 0.55, relieve: 0.14, frec: 1.25, fibras: 1.2 });
+const mallaExt = new THREE.Mesh(geoExt, mMioExt);
+mallaExt.castShadow = mallaExt.receiveShadow = true;
+exterior.add(mallaExt);
+
+// Proyección a la superficie (Newton sobre el campo) y búsqueda del fondo de un surco: para cada
+// punto de una guía, el punto de la superficie donde las dos masas que lo forman están igual de cerca.
+const gradExt = (p, e = 0.04) => V3(
+  sdCorazonExt(p.x + e, p.y, p.z) - sdCorazonExt(p.x - e, p.y, p.z),
+  sdCorazonExt(p.x, p.y + e, p.z) - sdCorazonExt(p.x, p.y - e, p.z),
+  sdCorazonExt(p.x, p.y, p.z + e) - sdCorazonExt(p.x, p.y, p.z - e)).normalize();
+function aSuperficie(p) {
+  for (let i = 0; i < 8; i++) { const d = sdCorazonExt(p.x, p.y, p.z); if (Math.abs(d) < 1e-3) break; p.addScaledVector(gradExt(p), -d); }
+  return p;
+}
+function surco(guia, fA, fB, paso = 0.35) {
+  const cv = curva(guia), N = Math.max(4, Math.round(cv.getLength() / paso)), pts = [];
+  for (let i = 0; i <= N; i++) {
+    const g = cv.getPointAt(i / N), tg = cv.getTangentAt(i / N);
+    const a = V3(0, 0, 1).cross(tg).normalize(), b = tg.clone().cross(a).normalize();
+    let mejor = null, min = Infinity;
+    for (let u = -4; u <= 4; u++) for (let v = -4; v <= 4; v++) {
+      const q = aSuperficie(g.clone().addScaledVector(a, u * 0.25).addScaledVector(b, v * 0.25));
+      const m = Math.abs(fA(q.x, q.y, q.z) - fB(q.x, q.y, q.z)) + 0.15 * q.distanceTo(g);
+      if (m < min) { min = m; mejor = q; }
+    }
+    pts.push(mejor);
+  }
+  return pts.map((p, i) => (i && i < pts.length - 1 ? p.clone().add(pts[i - 1]).add(pts[i + 1]).divideScalar(3) : p)).map((p) => aSuperficie(p));
+}
+const sobre = (pts, h) => pts.map((p) => p.clone().addScaledVector(gradExt(p), h));
+const fVI = (x, y, z) => sdCamara(CAMARAS_EXT.VI, x, y, z) - 1.1, fVD = (x, y, z) => sdCamara(CAMARAS_EXT.VD, x, y, z) - 0.55;
+const SURCOS = {
+  // descendente anterior: entre VD y VI por la cara anterior, hasta cerca de la punta
+  da: surco([[1.5, 0.2, 2.9], [2.0, -2.0, 3.0], [2.7, -4.6, 2.6], [3.4, -6.9, 1.8]], fVI, fVD),
+  // coronaria derecha: surco AV derecho, rodeando el borde derecho hacia atrás
+  cd: surco([[-1.3, 0.9, 2.6], [-2.8, 0.3, 2.5], [-4.3, -0.4, 1.3], [-4.9, -0.8, -0.6], [-4.3, -0.9, -2.3]], sdVentExt, sdAuriExt),
+  // circunfleja: surco AV izquierdo, bajo la orejuela izquierda y hacia atrás
+  cx: surco([[1.7, 0.4, 2.4], [3.2, 0.0, 1.6], [4.3, -0.5, 0.0], [4.2, -0.6, -1.8]], sdVentExt, sdAuriExt),
+};
+// rama diagonal, proyectada sin surco
+const rama = (pts) => pts.map((p) => aSuperficie(V3(...p)));
+SURCOS.diag = rama([[2.1, -1.6, 3.1], [3.2, -2.6, 2.7], [4.2, -3.8, 1.9], [4.7, -5.0, 1.0]]);
+
+// Grasa epicárdica: lóbulos (icosaedros deformados) a lo largo de los surcos, medio hundidos.
+const mGrasa = matTejido({ clave: 'grasa', rugosidad: 0.3, barniz: 0.6, relieve: 0.012, frec: 3.0, fibras: 0 });
+const lobulos = [];
+for (const [nombre, pts] of Object.entries(SURCOS)) {
+  if (nombre === 'diag') continue;
+  const cv = new THREE.CatmullRomCurve3(pts), L = cv.getLength(), n = Math.round(L / 0.24);
+  for (let i = 0; i <= n; i++) {
+    const f = i / n, k = lobulos.length, p = cv.getPointAt(f), tg = cv.getTangentAt(f), nr = gradExt(p);
+    const lat = tg.clone().cross(nr).normalize();
+    const ancho = nombre === 'da' ? 0.9 - 0.6 * f : 1.1;   // la grasa se afina hacia la punta
+    for (let j = 0; j < 2; j++) {
+      const q = p.clone().addScaledVector(lat, (hash(k + j * 0.5, 3) - 0.5) * 1.1 * ancho).addScaledVector(tg, (hash(k, 4) - 0.5) * 0.25);
+      aSuperficie(q);
+      const r = (0.22 + 0.2 * hash(k + j, 5)) * (0.55 + 0.45 * ancho);
+      lobulos.push({ p: q.addScaledVector(gradExt(q), -0.25 * r), r, s: [1 + 0.35 * hash(k + j, 6), 0.7 + 0.2 * hash(k + j, 7), 1 + 0.3 * hash(k + j, 8)], rot: hash(k + j, 9) * 6.28 });
+    }
+  }
+}
+let geoLob = mergeVertices(new THREE.IcosahedronGeometry(1, 2).deleteAttribute('normal').deleteAttribute('uv'));
+{ const p = geoLob.attributes.position.array; for (let i = 0; i < p.length; i += 3) { const k = 1 + 0.12 * Math.sin(p[i] * 5.1 + p[i + 1] * 3.7) * Math.sin(p[i + 2] * 4.3); p[i] *= k; p[i + 1] *= k; p[i + 2] *= k; }
+  geoLob.setAttribute('aRef', new THREE.BufferAttribute(p.slice(), 3)); geoLob.computeVertexNormals(); }
+const grasa = new THREE.InstancedMesh(geoLob, mGrasa, lobulos.length);
+grasa.castShadow = grasa.receiveShadow = true; grasa.frustumCulled = false;
+exterior.add(grasa);
+for (const L of lobulos) { L.base = baseDeformacion(L.p.x, L.p.y, L.p.z, null, CAMARAS_EXT); L.q = new THREE.Quaternion().setFromAxisAngle(gradExt(L.p), L.rot).multiply(new THREE.Quaternion().setFromUnitVectors(_upY, gradExt(L.p))); }
+function colocarGrasa() {
+  lobulos.forEach((L, i) => {
+    const d = desplazar(L.base, _vg).add(L.p);
+    _m4g.compose(d, L.q, _sg.set(L.r * L.s[0], L.r * L.s[1], L.r * L.s[2]));
+    grasa.setMatrixAt(i, _m4g);
+  });
+  grasa.instanceMatrix.needsUpdate = true;
+}
+
+// Coronarias en relieve (tubos sobre los surcos, algo hundidos en la grasa) y la vena cardiaca magna.
+const mCorA = matTejido({ clave: 'vasoR', rugosidad: 0.35, barniz: 0.6, relieve: 0.006, frec: 4, fibras: 0 });
+const mCorV = matTejido({ clave: 'vasoA', rugosidad: 0.35, barniz: 0.6, relieve: 0.006, frec: 4, fibras: 0 });
+function tuboSobre(pts, r, altura, m) {
+  const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(sobre(pts, altura)), pts.length * 3, r, 10, false);
+  hacerDeformable(g, CAMARAS_EXT, 'fuera');
+  const me = new THREE.Mesh(g, m); me.castShadow = true; exterior.add(me); return me;
+}
+tuboSobre(SURCOS.da.slice(0, -2), 0.19, 0.3, mCorA);
+tuboSobre(SURCOS.cd, 0.22, 0.45, mCorA);
+tuboSobre(SURCOS.cx, 0.19, 0.42, mCorA);
+tuboSobre(SURCOS.diag, 0.13, 0.12, mCorA);
+{ // vena cardiaca magna: junto a la descendente anterior, del lado del VI
+  const pts = SURCOS.da.map((p, i) => aSuperficie(p.clone().add(V3(0.38, 0.05, 0))));
+  tuboSobre(pts.slice(2, -3), 0.16, 0.28, mCorV);
+}
+
+// Grandes vasos: tubos lisos sobre curvas (sin el escalonado de la rejilla), tejido y color anatómico.
+// El extremo libre se cierra con la sección de la pared y la luz oscura, como en una maqueta cortada.
+const mAorta = matTejido({ clave: 'vasoR', rugosidad: 0.45, barniz: 0.45, relieve: 0.01, frec: 1.6, fibras: 0 });
+const mVena = matTejido({ clave: 'vasoA', rugosidad: 0.45, barniz: 0.45, relieve: 0.01, frec: 1.6, fibras: 0 });
+const mCorteVaso = mat('seccion', { roughness: 0.6 }), mLuz = mat('luz', { roughness: 0.9 });
+const VASOS_EXT = {
+  pulmonar:  { p: [[0.3, 0.8, 2.1], [0.8, 2.8, 2.25], [1.35, 4.5, 1.35], [1.5, 5.2, 0.3]], r: 1.35, m: mVena, fin: false },
+  apIzq:     { p: [[1.4, 5.1, 0.4], [3.1, 5.4, -0.3], [5.0, 5.0, -1.0]], r: 0.95, m: mVena, fin: true },
+  apDer:     { p: [[1.4, 5.1, 0.2], [-0.3, 5.3, -1.3], [-2.5, 5.1, -1.8], [-4.4, 4.9, -1.9]], r: 0.95, m: mVena, fin: true },
+  aorta:     { p: [[-0.5, 0.6, 0.6], [-0.95, 3.2, 0.9], [-1.05, 5.4, 0.5], [-0.3, 6.95, -0.3], [1.2, 7.3, -1.4], [2.3, 6.5, -2.4], [2.65, 4.6, -3.2], [2.7, 2.4, -3.5]], r: 1.3, m: mAorta, fin: true },
+  tronco:    { p: [[-0.6, 6.8, 0.0], [-1.3, 8.0, 0.1], [-1.9, 9.3, 0.1]], r: 0.62, m: mAorta, fin: true },
+  carotida:  { p: [[0.4, 7.4, -0.8], [0.55, 8.4, -0.8], [0.65, 9.5, -0.8]], r: 0.42, m: mAorta, fin: true },
+  subclavia: { p: [[1.5, 7.3, -1.6], [2.1, 8.2, -1.8], [2.8, 9.2, -1.9]], r: 0.5, m: mAorta, fin: true },
+  cavaSup:   { p: [[-3.6, 3.6, 0.0], [-3.35, 5.6, -0.1], [-3.25, 8.4, -0.2]], r: 1.05, m: mVena, fin: true },
+  cavaInf:   { p: [[-3.6, 0.6, -1.0], [-3.5, -1.2, -1.3], [-3.4, -3.0, -1.4]], r: 1.1, m: mVena, fin: true },
+  pvDerSup:  { p: [[-1.2, 3.2, -3.0], [-2.3, 3.4, -3.3], [-3.4, 3.6, -3.4]], r: 0.6, m: mAorta, fin: true },
+  pvDerInf:  { p: [[-1.2, 2.1, -3.0], [-2.3, 1.9, -3.3], [-3.4, 1.8, -3.4]], r: 0.6, m: mAorta, fin: true },
+  pvIzqSup:  { p: [[2.9, 3.3, -2.8], [3.9, 3.5, -3.0], [4.9, 3.6, -3.0]], r: 0.6, m: mAorta, fin: true },
+  pvIzqInf:  { p: [[3.0, 2.2, -2.7], [3.9, 2.0, -2.9], [4.9, 1.8, -2.9]], r: 0.6, m: mAorta, fin: true },
+};
+const geoTapa = new THREE.CircleGeometry(1, 28), geoLuz = new THREE.CircleGeometry(0.8, 28);
+for (const V of Object.values(VASOS_EXT)) {
+  const cv = curva(V.p), g = new THREE.TubeGeometry(cv, Math.max(12, Math.round(cv.getLength() * 5)), V.r, 28, false);
+  hacerDeformable(g, CAMARAS_EXT, 'fuera');
+  const me = new THREE.Mesh(g, V.m); me.castShadow = me.receiveShadow = true; exterior.add(me);
+  if (!V.fin) continue;
+  const e = cv.getPointAt(1), tg = cv.getTangentAt(1), q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), tg);
+  const tapa = new THREE.Mesh(geoTapa, mCorteVaso), luz = new THREE.Mesh(geoLuz, mLuz);
+  tapa.position.copy(e); tapa.quaternion.copy(q); tapa.scale.setScalar(V.r);
+  luz.position.copy(e).addScaledVector(tg, 0.01); luz.quaternion.copy(q); luz.scale.setScalar(V.r);
+  exterior.add(tapa, luz);
+}
+
+// ── 8. Pose completa en un instante absoluto (s de cámara lenta ya descontados) ─────────────
+let tAbsActual = 0;
+function poner(tAbs) {
+  tAbsActual = tAbs;
+  const tc = ((tAbs % T) + T) % T;
+  fijarEscalas(tc);
+  deformar(estado.vista);
+  if (estado.vista === 'fuera') colocarGrasa();
+  const L = SIM.izq, R = SIM.der;
+  colocarValva(VALVULAS.mitral, en(L, 'apAV', tc));
+  colocarValva(VALVULAS.aortica, en(L, 'apSL', tc));
+  colocarValva(VALVULAS.tricuspide, en(R, 'apAV', tc));
+  colocarValva(VALVULAS.pulmonar, en(R, 'apSL', tc));
+  colocarCuerdas();
+  colocarFlecha(VALVULAS.mitral, en(L, 'Pat', tc) - en(L, 'Pv', tc));
+  colocarFlecha(VALVULAS.aortica, en(L, 'Pv', tc) - en(L, 'Pa', tc));
+  colocarFlecha(VALVULAS.tricuspide, en(R, 'Pat', tc) - en(R, 'Pv', tc));
+  colocarFlecha(VALVULAS.pulmonar, en(R, 'Pv', tc) - en(R, 'Pa', tc));
+  if (estado.sangre) colocarSangre(tAbs);
+  pedirFotograma();
+}
+
+// ── 9. Maqueta: pedestal, soporte y regla de 10 cm ───────────────────────────────
+const ped = pedestal({ ancho: 7.4, fondo: 3.4, alto: 0.4 });
+ped.position.x = 0.2;
+const mSoporte = mat('soporte', { roughness: 0.35, metalness: 0.8 });
+{
+  const varilla = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.6, 16), mSoporte);
+  varilla.position.set(0.55, 0.8, -1.3); varilla.castShadow = true; escena.add(varilla);
+  const pie = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.08, 32), mSoporte);
+  pie.position.set(0.55, 0.04, -1.3); pie.castShadow = pie.receiveShadow = true; escena.add(pie);
+  const brazo = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.6, 12), mSoporte);
+  brazo.rotation.x = Math.PI / 2; brazo.position.set(0.55, 1.6, -1.0); escena.add(brazo);
+}
+// Regla: 10 cm a la escala de la maqueta, con marcas cada centímetro dibujadas en canvas.
+const regla = new THREE.Mesh(new THREE.BoxGeometry(10 * ESC + 0.2, 0.03, 0.34), mat('regla', { roughness: 0.6 }));
+regla.position.set(2.1, 0.015, 1.25); regla.receiveShadow = true; escena.add(regla);
+{
+  const cv = document.createElement('canvas'); cv.width = 512; cv.height = 64;
+  const x = cv.getContext('2d'); x.fillStyle = '#2a2622';
+  const px = (cm) => 10 + cm * 49.2;
+  for (let i = 0; i <= 20; i++) { const cm = i / 2, largo = i % 10 === 0 ? 30 : i % 2 === 0 ? 20 : 11; x.fillRect(px(cm) - 1.2, 0, 2.4, largo); }
+  x.font = '600 22px system-ui, sans-serif'; x.textAlign = 'center';
+  x.fillText('0', px(0) + 8, 56); x.fillText('5', px(5), 56); x.fillText('10 cm', px(10) - 26, 56);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const marcas = new THREE.Mesh(new THREE.PlaneGeometry(10 * ESC + 0.2, 0.34), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.7 }));
+  marcas.rotation.x = -Math.PI / 2; marcas.position.set(2.1, 0.032, 1.25); escena.add(marcas);
+}
+sol.position.set(3, 10, 7);
+sol.shadow.camera.left = sol.shadow.camera.bottom = -5;
+sol.shadow.camera.right = sol.shadow.camera.top = 5;
+sol.shadow.camera.updateProjectionMatrix();
+sol.shadow.mapSize.set(2048, 2048);
+for (const m of [suelo.material, ped.material, regla.material]) m.envMapIntensity = 0.2;
+
+// ── 10. Etiquetas ─────────────────────────────────────────────────────────────
+const ancla = (x, y, z = 0) => { const o = new THREE.Object3D(); o.position.set(x, y, z); corazon.add(o); return o; };
+const mm = (p) => `${num(p, 0)} mmHg`;
+// Todas las etiquetas con cifra leen `v` (vivo): siguen al latido y, con el instante congelado, son exactas.
+// Dos juegos: el del corte (esquemático) y el de fuera (anatomía real); alCambiar enciende uno.
+const etDentro = [
+  etiqueta(ancla(5.4, -4.4, 0), (e, v) => `Ventrículo izq. · ${mm(v.Pv)}`, { color: 'rojo', lado: 'der', prioridad: 2 }),
+  etiqueta(ancla(6.2, 5.0, -0.3), (e, v) => `Aurícula izq. · ${mm(v.Pat)}`, { color: 'rojo', lado: 'der', prioridad: 1 }),
+  etiqueta(ancla(3.3, 8.9, -1.0), (e, v) => `Aorta · ${mm(v.Pa)}`, { color: 'rojo', lado: 'der', prioridad: 2 }),
+  etiqueta(ancla(-5.0, -4.2, 0.2), (e, v) => `Ventrículo der. · ${mm(v.PvD)}`, { color: 'azul', lado: 'izq', prioridad: 1, opcional: true }),
+  etiqueta(ancla(-6.1, 1.2, 0), 'Aurícula der.', { color: 'azul', lado: 'izq', opcional: true }),
+  etiqueta(ancla(-3.4, 7.4, -1.8), 'Arteria pulmonar', { color: 'azul', lado: 'izq', opcional: true }),
+];
+const etFuera = [
+  etiqueta(ancla(5.1, -4.8, 0.6), (e, v) => `Ventrículo izq. · ${mm(v.Pv)}`, { color: 'rojo', lado: 'der', prioridad: 2 }),
+  etiqueta(ancla(-3.3, -3.4, 2.9), (e, v) => `Ventrículo der. · ${mm(v.PvD)}`, { color: 'azul', lado: 'izq', prioridad: 1 }),
+  etiqueta(ancla(-2.4, 4.6, 0.9), (e, v) => `Aorta · ${mm(v.Pa)}`, { color: 'rojo', lado: 'izq', prioridad: 2 }),
+  etiqueta(ancla(2.6, 4.2, 1.9), 'Tronco pulmonar', { color: 'azul', lado: 'der', prioridad: 1 }),
+  etiqueta(ancla(4.1, 1.6, 1.5), 'Orejuela izq.', { color: 'rojo', lado: 'der', opcional: true }),
+  etiqueta(ancla(-5.5, 1.9, 0.6), 'Aurícula der.', { color: 'azul', lado: 'izq', opcional: true }),
+  etiqueta(ancla(-4.3, 7.4, 0), 'Vena cava sup.', { color: 'azul', lado: 'izq', opcional: true }),
+  etiqueta(ancla(-4.6, -1.0, 1.6), 'Coronaria der.', { color: 'rojo', lado: 'izq', opcional: true }),
+  etiqueta(ancla(2.5, -2.6, 3.1), 'Descendente anterior', { color: 'rojo', lado: 'der', opcional: true }),
+];
+const estadoValv = (ap) => (ap > 0.05 ? 'abierta' : 'cerrada');
+const etMit = etiqueta(ancla(5.1, 0.2, -0.1), (e, v) => `Mitral · ${estadoValv(v.apAV)}`, { color: 'amarillo', lado: 'der', prioridad: 2 });
+const etAo = etiqueta(ancla(2.7, 2.0, 0), (e, v) => `Aórtica · ${estadoValv(v.apSL)}`, { color: 'amarillo', lado: 'der', prioridad: 2 });
+const etTri = etiqueta(ancla(-5.2, 0.3, 0), 'Tricúspide', { color: 'amarillo', lado: 'izq', opcional: true });
+const etPul = etiqueta(ancla(-1.45, 2.6, 0), 'Pulmonar', { color: 'amarillo', lado: 'izq', opcional: true });
+
+// ── 11. Estado → escena ───────────────────────────────────────────────────────
+const vis = { t: 0 };        // instante absoluto mostrado (s del ciclo real, no de la animación)
+let desfase = 0;             // en «Latido»: tAbs = t·VEL + desfase, para no saltar al volver a latir
+actualizar = (tt) => { poner(tt * VEL + desfase); };
+// Lo que cambia con el tiempo y se lee en texto: el instante del ciclo (ms) y todo lo que de él sale. Con
+// latido, sigue a t; con el instante congelado, es e.ms. El andamiaje lo llama en cada refresco.
+vivo = (tt, e) => instante((((e.latir ? tt * VEL + desfase : e.ms / 1000) % T) + T) % T * 1000);
+SOMBRAS_ANIMADAS = true;   // el músculo se deforma: su sombra cambia en cada fotograma
+alCambiar((e, prev) => {
+  const dentro = e.vista === 'dentro';
+  uCorte.value = dentro ? 1 : 0;
+  const recortables = [mMusculo, mSangre.izq, mSangre.der, cuerdas.material];   // las valvas se ven enteras
+  for (const m of recortables) {
+    const lado = m === mMusculo ? (dentro ? THREE.DoubleSide : THREE.FrontSide) : m.side;
+    if (!!(m.clippingPlanes && m.clippingPlanes.length) !== dentro || m.side !== lado) { m.clippingPlanes = dentro ? [planoCorte] : []; m.side = lado; m.needsUpdate = true; }
+  }
+  for (const Vv of Object.values(VALVULAS)) { Vv.flecha.visible = dentro; for (const h of Vv.hojasM) h.visible = dentro; }
+  cuerdas.visible = dentro;
+  for (const o of [etMit, etAo, etTri, etPul, ...etDentro]) o.visible = dentro;
+  for (const o of etFuera) o.visible = !dentro;
+  musculo.visible = dentro; exterior.visible = !dentro;
+  for (const R of Object.values(RUTAS)) R.malla.visible = e.sangre && dentro;
+  if (e.latir) {
+    desfase = prev ? tAbsActual - t * VEL : 0;   // al arrancar, tAbs = t·VEL: ?t= reproduce la captura
+    ANIMADA = true;
+    actualizar(t);
+  } else {
+    ANIMADA = false;
+    const actual = prev ? tAbsActual : 0;
+    let destino = Math.floor(actual / T) * T + e.ms / 1000;
+    if (destino < actual - 1e-6) destino += T;
+    if (!prev) destino = e.ms / 1000;
+    vis.t = actual;
+    const dur = Math.min(1600, Math.max(350, (destino - actual) / VEL * 1000 / 3));
+    suavizar(vis, { t: destino }, dur, () => poner(vis.t));
+  }
+  marcarSombras();
+});
+
+// ── 12. Mandos, cifras, relato, gráfico ─────────────────────────────────────────
+grupo('Momento', 'ms', [
+  { fija: { latir: true }, texto: 'Latido', tecla: '1' },
+  { valor: 400, fija: { latir: false }, texto: 'Llenado', tecla: '2' },
+  { valor: 18, fija: { latir: false }, texto: 'Todo cerrado', tecla: '3' },
+  { valor: 90, fija: { latir: false }, texto: 'Expulsión', tecla: '4' },
+], { principal: true });
+grupo('Ver', 'vista', [
+  { valor: 'dentro', texto: 'Por dentro', tecla: 'd' },
+  { valor: 'fuera', texto: 'Por fuera', tecla: 'e' },
+], { exhibicion: true });
+// Tocarlo congela el latido en ese instante; mientras late, el mango recorre el ciclo (v.ms).
+deslizador('Instante del latido', 'ms', { min: 0, max: NMS - 2, paso: 2, tambien: { latir: false }, mostrar: (e, v) => v.ms, formato: (ms) => `${num(ms, 0)} ms` });
+capa('Sangre', 'sangre', 's');
+
+cifra('Ventrículo izq.', (e, v) => ({ valor: num(v.Pv, 0), unidad: 'mmHg', sub: v.Pv > v.Pa ? 'más que la aorta' : v.Pv > v.Pat ? 'más que la aurícula' : 'menos que la aurícula' }));
+cifra('Aorta', (e, v) => ({ valor: num(v.Pa, 0), unidad: 'mmHg', sub: v.Qsl > 0.5 ? 'aórtica abierta' : 'aórtica cerrada' }));
+cifra('Volumen VI', (e, v) => ({ valor: num(v.Vv, 0), unidad: 'mL', sub: `lleno: ${num(EDV, 0)} mL` }));
+cifra('Salida', (e, v) => ({ valor: num(v.Qsl, 0), unidad: 'mL/s', sub: v.Qsl > 0.5 ? 'hacia la aorta' : 'no sale nada' }));
+
+const b = (v, d = 0) => `<b>${num(v, d)}</b>`;
+relato((e, r) => {
+  if (r.fase === 'llenado') return `El ventrículo, relajado, está a ${b(r.Pv)} mmHg, por debajo de la aurícula (${b(r.Pat)}): esa diferencia empuja la mitral y la abre. Entran ${b(r.Qav)} mL/s sin que la aurícula se contraiga; ya lleva ${b(r.Vv)} de ${b(EDV)} mL.`;
+  if (r.fase === 'auricula') return `Ahora sí se contrae la aurícula: sube a ${b(r.Pat, 1)} mmHg y empuja ${b(r.Qav)} mL/s. Pero solo aporta unos ${b(APORTE)} mL, el ${b(APORTE / EDV * 100)} % del llenado: el resto entró solo.`;
+  if (r.fase === 'contraccion') return `El ventrículo ya se aprieta: ${b(r.Pv)} mmHg. Supera a la aurícula (${b(r.Pat)}), así que la mitral se cerró; pero no a la aorta (${b(r.Pa)}), que mantiene cerrada la aórtica. Sin salida, el volumen no cambia: ${b(r.Vv)} mL.`;
+  if (r.fase === 'expulsion') return `El ventrículo (${b(r.Pv)} mmHg) supera a la aorta (${b(r.Pa)}): esa diferencia abre la aórtica y salen ${b(r.Qsl)} mL/s. Ya salieron ${b(r.salido)} de ${b(VLAT)} mL; al final quedarán ${b(ESV)} mL dentro.`;
+  return `El ventrículo se relaja: ${b(r.Pv)} mmHg. La aorta (${b(r.Pa)}) lo supera y cierra la aórtica; la aurícula (${b(r.Pat)}) aún no, así que la mitral sigue cerrada. Volumen fijo: ${b(r.Vv)} mL.`;
+});
+relatoCorto((e, r) => {
+  if (r.fase === 'llenado') return `Ventrículo ${b(r.Pv)} &lt; aurícula ${b(r.Pat)} mmHg: la mitral se abre sola`;
+  if (r.fase === 'auricula') return `La aurícula añade solo ${b(APORTE)} mL, el ${num(APORTE / EDV * 100, 0)} %`;
+  if (r.fase === 'contraccion') return `Aprieta a ${b(r.Pv)} mmHg, pero la aorta tiene ${num(r.Pa, 0)}: no sale nada`;
+  if (r.fase === 'expulsion') return `${b(r.Pv)} &gt; aorta ${b(r.Pa)} mmHg: la aórtica se abre`;
+  return `${b(r.Pv)} mmHg: todo cerrado otra vez, ${num(r.Vv, 0)} mL dentro`;
+});
+
+grafico('Presiones del lado izquierdo en un latido', (ctx, w, h, e, c, v) => {
+  const l = 34, r = 8, sup = 10, inf = 36, ancho = w - l - r, alto = h - sup - inf, PMX = 140;
+  const X = (ms) => l + ms / NMS * ancho, Y = (p) => sup + alto - p / PMX * alto;
+  const L = SIM.izq;
+  ctx.font = '11px system-ui, sans-serif'; ctx.lineWidth = 1;
+  // franjas «todo cerrado»: ni entra ni sale sangre del ventrículo
+  ctx.fillStyle = c.tenue; ctx.globalAlpha = 0.14;
+  let ini = null;
+  for (let j = 0; j <= NMS; j++) {
+    const cerr = j < NMS && L.Qav[j] <= 0.5 && L.Qsl[j] <= 0.5;
+    if (cerr && ini === null) ini = j;
+    if (!cerr && ini !== null) { ctx.fillRect(X(ini), sup, X(j) - X(ini), alto); ini = null; }
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = c.borde; ctx.fillStyle = c.tenue; ctx.textAlign = 'right';
+  for (const p of [0, 40, 80, 120]) { ctx.beginPath(); ctx.moveTo(l, Y(p)); ctx.lineTo(l + ancho, Y(p)); ctx.stroke(); ctx.fillText(String(p), l - 4, Y(p) + 4); }
+  ctx.textAlign = 'center';
+  for (const s of [0, 0.2, 0.4, 0.6, 0.8]) ctx.fillText(num(s, 1) + (s === 0.8 ? ' s' : ''), X(s * 1000), h - 22);
+  const curva2 = (arr, col, grosor) => {
+    ctx.strokeStyle = col; ctx.lineWidth = grosor; ctx.lineJoin = 'round'; ctx.beginPath();
+    for (let j = 0; j <= NMS; j += 2) (j ? ctx.lineTo(X(j), Y(arr[j])) : ctx.moveTo(X(j), Y(arr[j])));
+    ctx.stroke();
+  };
+  curva2(L.Pa, c.rojo, 2); curva2(L.Pat, c.violeta, 2); curva2(L.Pv, c.naranja, 2.4);
+  // instante actual
+  const msAhora = v.ms;
+  ctx.strokeStyle = c.texto; ctx.setLineDash([4, 3]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(X(msAhora), sup); ctx.lineTo(X(msAhora), sup + alto); ctx.stroke(); ctx.setLineDash([]);
+  for (const [arr, col] of [[L.Pv, c.naranja], [L.Pa, c.rojo], [L.Pat, c.violeta]]) {
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(msAhora), Y(en(L, arr === L.Pv ? 'Pv' : arr === L.Pa ? 'Pa' : 'Pat', msAhora / 1000)), 3.6, 0, 7); ctx.fill();
+  }
+  // leyenda en línea
+  ctx.textAlign = 'left'; ctx.font = '11px system-ui, sans-serif';
+  let lx = l;
+  for (const [txt, col] of [['ventrículo', c.naranja], ['aorta', c.rojo], ['aurícula', c.violeta], ['todo cerrado', c.tenue]]) {
+    ctx.fillStyle = col; ctx.globalAlpha = txt === 'todo cerrado' ? 0.35 : 1; ctx.fillRect(lx, h - 11, 14, txt === 'todo cerrado' ? 8 : 3); ctx.globalAlpha = 1;
+    ctx.fillStyle = c.texto; ctx.fillText(txt, lx + 18, h - 5); lx += 26 + ctx.measureText(txt).width;
+  }
+  ctx.fillStyle = c.tenue; ctx.textAlign = 'left'; ctx.fillText('mmHg', l + 3, sup + 9);
+});
+
+ayuda(`<b>Modelo simplificado:</b> cavidades con elastancia variable, arterias como Windkessel y válvulas ideales (se abren en cuanto la presión de atrás supera a la de delante). Adulto en reposo, ${FC} latidos por minuto, en cámara lenta ×5. «Por dentro» es un corte esquemático: las cuatro válvulas en un mismo plano y los grandes vasos sin cruzarse. «Por fuera» se acerca a la anatomía real: punta hacia la izquierda, ventrículo derecho por delante, tronco pulmonar cruzando por delante de la aorta.`);
+ayuda('Flecha naranja: diferencia de presión en cada válvula, desde el lado que empuja más; su largo crece con la raíz de la diferencia y tiene un mínimo, para que se vea aunque sea de 1 o 2 mmHg. Rojo: sangre con oxígeno; azul: sin oxígeno.');
+
+// Figura alta (≈ 20 × 14 cm de alto por ancho). Completo: la mira baja para que entre entera la regla de
+// 10 cm. Compacto (2:1, con la barra de presets encima): la cámara se acerca y sube un poco para que la
+// válvula más pequeña (pulmonar, aórtica) pase de 40 px, sin perder la punta ni el arco de la aorta.
+VISTAS = {
+  inicial: { pos: [0.45, 4.95, 8.3], mira: [0.4, 3.3, 0], compacto: { pos: [0.45, 6.12, 7.13], mira: [0.4, 3.8, 0] } },
+  lado:    { pos: [8.5, 5.2, 9.0], mira: [0.35, 3.2, 0], compacto: { pos: [5.0, 5.0, 4.8], mira: [0.75, 3.85, 0] } },
+};
+ASPECTO_BASE = 1.2;
+orbita.minDistance = 4; orbita.maxDistance = 30;
+ANIMADA = estado.latir;
+
+// ───────────────────────────────────────────────────────────────────────────
+//  BUCLE
+// ───────────────────────────────────────────────────────────────────────────
+aplicarTema(temaInicial());
+if (exhibicion) { document.body.dataset.exhibicion = ''; $('btn-exhibicion').setAttribute('aria-pressed', 'true'); }
+for (const clave of vistasVisibles()) {
+  const b = el('button'); b.textContent = clave[0].toUpperCase() + clave.slice(1); b.dataset.vista = clave;
+  b.addEventListener('click', () => mirarDesde(clave));
+  $('vistas').append(b);
+}
+// Pausa: el botón (panel y mini barra) solo se muestra mientras ANIMADA sea true; sincronizarPausa() lo comprueba cada vuelta.
+const bPausa = el('button'), bPausaMini = el('button');
+const rotuloPausa = () => { bPausa.textContent = bPausaMini.textContent = pausado ? '▶ Reanudar' : '⏸ Pausa'; };
+rotuloPausa();
+bPausa.addEventListener('click', () => { pausado = !pausado; rotuloPausa(); pedirFotograma(); });
+bPausaMini.addEventListener('click', () => bPausa.click());
+$('vistas').before(bPausa);
+$('mini-acciones').prepend(bPausaMini);
+atajos.push({ tecla: ' ', texto: 'Pausa', activo: () => ANIMADA, fn: () => { if (ANIMADA) bPausa.click(); } });
+let animadaVista = null;
+function sincronizarPausa() {
+  if (ANIMADA === animadaVista) return;
+  if (animadaVista === false && ANIMADA && pausado) { pausado = false; rotuloPausa(); }
+  animadaVista = ANIMADA;
+  bPausa.hidden = bPausaMini.hidden = !ANIMADA;
+  pedirFotograma();
+}
+actualizarFormato();
+refrescar();
+sincronizarPausa();   // tras refrescar(): la escena suele fijar ANIMADA en alCambiar, y el estado inicial no cuenta como cambio
+// Prioridad: ?vista=, la que la escena eligió al arrancar (mirarDesde en alCambiar), la inicial.
+mirarDesde(VISTAS[url.get('vista')] ? url.get('vista') : VISTAS[vistaActual] ? vistaActual : vistaBase());
+arrancado = true;
+
+const reloj = new THREE.Clock();
+let fotogramas = 0;
+render.setAnimationLoop(() => {
+  const dt = reloj.getDelta();
+  sincronizarPausa();
+  let dibujar = pedido;
+  if (ANIMADA && (!pausado || pedido)) {
+    if (!pausado) t += dt;
+    actualizar(t, estado);
+    seguirTexto();
+    dibujar = true;
+    if (SOMBRAS_ANIMADAS) sombrasSucias = true;
+  }
+  if (avanzarTransiciones()) sombrasSucias = dibujar = true;
+  if (orbita.update()) dibujar = true;
+  if (modoCaptura && fotogramas < 3) dibujar = true;
+  if (!dibujar) return;
+  pedido = false;
+  if (sombrasSucias) { render.shadowMap.needsUpdate = true; sombrasSucias = false; }
+  render.render(escena, camara);
+  rotulos.render(escena, camara);
+  resolverEtiquetas();
+  fotogramas++;
+
+  if (fotogramas === 1) {
+    arranqueMs = Math.round(performance.now() - t0Modulo);
+    diagOK = `OK three=${THREE.REVISION} objetos=${escena.children.length} ` +
+      `triangulos=${render.info.render.triangles} llamadas=${render.info.render.calls} ` +
+      `formato=${document.body.dataset.formato} tema=${document.body.dataset.tema} arranque=${arranqueMs}`;
+    medirTexto();
+    document.body.dataset.listo = '1';
+  }
+  // Cierre del modo captura, no simplificar: con el bucle vivo el headless no da la página por terminada, y cortarlo a secas deja
+  // un PNG negro con las etiquetas flotando (el compositor fotografía antes de llevar a pantalla lo que WebGL dibujó).
+  // Congelar el lienzo en un <img> quita la carrera: una imagen normal siempre se pinta.
+  if (modoCaptura && fotogramas === 3) {
+    render.setAnimationLoop(null);
+    const foto = new Image();
+    foto.src = render.domElement.toDataURL('image/png');   // exige preserveDrawingBuffer
+    foto.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+    render.domElement.replaceWith(foto);
+  }
+});
+</script>
+</body>
+</html>

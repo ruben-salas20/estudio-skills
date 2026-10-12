@@ -1,0 +1,1781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="escenas-3d" content="laboratorio">
+<title>Cómo un río rehace su valle</title>
+<style>
+  /* Variables de interfaz por tema. Los colores 3D (--c-*) los escribe el guion desde TEMAS. */
+  body[data-tema=oscuro] {
+    --fondo: #16181d; --panel: rgba(27, 30, 37, .84); --borde: rgba(255, 255, 255, .13);
+    --texto: #e9ecf1; --tenue: #a0aab8; --acento: #6db1ff; --sobre-acento: #071220;
+    --boton: rgba(255, 255, 255, .07); --boton-hover: rgba(255, 255, 255, .14);
+  }
+  body[data-tema=claro] {
+    --fondo: #eceef1; --panel: rgba(255, 255, 255, .84); --borde: rgba(0, 0, 0, .15);
+    --texto: #1c2128; --tenue: #56606d; --acento: #1d6bd1; --sobre-acento: #ffffff;
+    --boton: rgba(0, 0, 0, .05); --boton-hover: rgba(0, 0, 0, .11);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body {
+    background: var(--fondo); color: var(--texto);
+    font: 14px/1.5 system-ui, "Segoe UI", sans-serif;
+  }
+  #lienzo { position: fixed; inset: 0; }
+  #lienzo canvas { display: block; }
+  [hidden] { display: none !important; }
+
+  .tarjeta {
+    background: var(--panel); border: 1px solid var(--borde); border-radius: 12px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .rotulo {
+    font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+    color: var(--tenue);
+  }
+  .num { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Etiquetas 3D: texto en color de tinta (contraste AA en ambos temas); el color semántico va en el borde. */
+  #etiquetas { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .etiqueta {
+    padding: 2px 8px; border-radius: 6px; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--borde); border-left: 3px solid var(--tenue);
+    color: var(--texto); font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums;
+    transition: opacity .18s;
+  }
+  /* Tapada por resolverEtiquetas(). */
+  .etiqueta.tapada { opacity: 0; }
+  body[data-captura] .etiqueta { transition: none; }   /* la captura no espera a un fundido */
+  .etiqueta.azul { border-left-color: var(--c-azul); }
+  .etiqueta.naranja { border-left-color: var(--c-naranja); }
+  .etiqueta.verde { border-left-color: var(--c-verde); }
+  .etiqueta.rojo { border-left-color: var(--c-rojo); }
+  .etiqueta.amarillo { border-left-color: var(--c-amarillo); }
+  .etiqueta.violeta { border-left-color: var(--c-violeta); }
+  .etiqueta.gris { border-left-color: var(--c-gris); }
+  body[data-formato=compacto] .etiqueta { font-size: 10.5px; padding: 1px 5px; border-left-width: 2px; }
+  /* opcional: true → fuera en compacto, donde no caben. */
+  body[data-formato=compacto] .etiqueta.opc { display: none; }
+
+  /* ── columna izquierda (completo) ── */
+  #izq {
+    position: fixed; top: 14px; left: 14px; bottom: 14px; width: 340px;
+    display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  }
+  #izq > * { pointer-events: auto; }
+  #cabecera { padding: 12px 16px 14px; }
+  #cabecera .antetitulo { margin: 0 0 2px; }
+  #cabecera h1 { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700; }
+  #cabecera .gancho { margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--tenue); }
+  /* 6 columnas, cada cifra ocupa 2; según data-n (lo escribe cifra()) se reparten para que ninguna quede suelta: 1 ancha, 2 y 4 a mitades, 5 → 3 + 2. */
+  #cifras { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .cifra { grid-column: span 2; padding: 8px 10px; min-width: 0; }
+  #cifras[data-n="1"] .cifra { grid-column: span 6; }
+  #cifras[data-n="2"] .cifra, #cifras[data-n="4"] .cifra { grid-column: span 3; }
+  #cifras[data-n="5"] .cifra:nth-child(n+4) { grid-column: span 3; }
+  #cifras[data-n="4"] .cifra .valor { font-size: 20px; }
+  .cifra .valor { display: block; margin-top: 2px; font-size: 22px; font-weight: 600; line-height: 1.15; }
+  .cifra .valor small { font-size: 12px; font-weight: 500; color: var(--tenue); margin-left: 3px; }
+  .cifra .sub { display: block; font-size: 11px; color: var(--tenue); line-height: 1.3; }
+  #tarjeta-relato { padding: 12px 16px; font-size: 14px; line-height: 1.5; }
+  #tarjeta-relato b { font-weight: 650; font-variant-numeric: tabular-nums; }
+  #caja-grafico { margin-top: auto; padding: 10px 12px 8px; }
+  #caja-grafico canvas { display: block; width: 100%; height: 170px; margin-top: 4px; }
+
+  /* ── mandos (arriba a la derecha) ── */
+  #mandos { position: fixed; top: 14px; right: 14px; width: 262px; max-height: calc(100% - 28px); overflow-y: auto; padding: 10px 12px 12px; }
+  #botones-fijos { display: flex; justify-content: flex-end; gap: 6px; }
+  #cuerpo-mandos { margin-top: 8px; }
+  #cuerpo-mandos h2 { margin: 14px 0 6px; }
+  .grupo { margin: 10px 0; }
+  .grupo .rotulo { display: block; margin-bottom: 5px; }
+  /* Nunca cortan texto: si no caben en una fila, ajustarGrupos() añade .fil y pasan a rejilla de 2+ filas. */
+  .seg { display: flex; gap: 4px; }
+  .seg button { flex: 1; white-space: nowrap; }
+  .seg.fil { display: grid; grid-template-columns: repeat(var(--c), 1fr); }
+  .control { margin: 12px 0; }
+  .control label { display: flex; justify-content: space-between; font-size: 13px; color: var(--tenue); }
+  .control label b { color: var(--texto); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .control input[type=range] { width: 100%; margin: 6px 0 0; accent-color: var(--acento); }
+  .chips, .barra { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  button {
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; line-height: 1.3;
+    background: var(--boton); color: var(--texto); border: 1px solid var(--borde);
+  }
+  button:hover { background: var(--boton-hover); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  button.activo, button[aria-pressed=true] {
+    background: var(--acento); border-color: var(--acento); color: var(--sobre-acento); font-weight: 600;
+  }
+  .btn-icono { width: 34px; height: 34px; padding: 0; font-size: 16px; }
+
+  /* ── barra inferior (compacto) ── */
+  #barra-inferior {
+    position: fixed; left: 10px; right: 10px; bottom: 10px; padding: 6px 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  #presets-compacto { flex: 0 1 auto; min-width: 0; max-width: 62%; }
+  #barra-inferior .grupo { margin: 0; }
+  #barra-inferior .grupo .rotulo { display: none; }
+  #barra-inferior button { padding: 4px 9px; font-size: 12px; }
+  #relato-corto { flex: 1; min-width: 0; font-size: 12px; line-height: 1.35; }
+  #relato-corto b { font-weight: 650; }
+
+  /* ── por formato ── */
+  body[data-formato=completo] #barra-inferior { display: none; }
+  body[data-formato=compacto] #cifras, body[data-formato=compacto] #tarjeta-relato,
+  body[data-formato=compacto] #caja-grafico, body[data-formato=compacto] #cuerpo-mandos,
+  body[data-formato=compacto] #cabecera .antetitulo, body[data-formato=compacto] #cabecera .gancho { display: none; }
+  body[data-formato=compacto] #izq { bottom: auto; width: auto; }
+  body[data-formato=compacto] #cabecera { padding: 4px 10px; border-radius: 8px; }
+  body[data-formato=compacto] #cabecera h1 { font-size: 13px; }
+  body[data-formato=compacto] #mandos {
+    top: 10px; right: 10px; width: auto; padding: 0; overflow: visible;
+    background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+  body[data-formato=compacto] .btn-icono { width: 28px; height: 28px; font-size: 14px; background: var(--panel); backdrop-filter: blur(6px); }
+  body[data-formato=compacto] .btn-icono:hover { background: var(--boton-hover); }
+
+  #ayuda { position: fixed; z-index: 5; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 14px 18px; min-width: 240px; max-width: 90%; font-size: 13px; }
+  #ayuda h2 { margin: 0 0 8px; }
+  #ayuda .nota { margin: 8px 0 0; max-width: 340px; color: var(--tenue); }   /* ayuda(html) */
+  #ayuda .arranque { margin: 8px 0 0; font-size: 11px; color: var(--tenue); }   /* «Arrancó en 1,2 s» */
+  #ayuda ul { margin: 0; padding: 0; list-style: none; }
+  #ayuda li { display: flex; gap: 10px; margin: 3px 0; }
+  #ayuda kbd { flex: none; min-width: 22px; text-align: center; padding: 0 5px; border: 1px solid var(--borde); border-radius: 5px; background: var(--boton); font: 12px ui-monospace, Menlo, Consolas, monospace; }
+  body[data-formato=compacto] #ayuda { font-size: 12px; padding: 10px 14px; }
+
+  /* ── modo exhibición («Solo la figura») ── */
+  /* left/right 0 + margen auto, no left: 50% + translate: con este el ancho disponible sería la mitad de la ventana. */
+  #mini { position: fixed; z-index: 4; left: 0; right: 0; margin: 0 auto; bottom: 14px; width: fit-content; max-width: calc(100% - 20px);
+          padding: 5px 6px; display: none; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 10px; }
+  #mini .grupo { margin: 0; max-width: 100%; }
+  #mini .grupo .rotulo { display: none; }
+  #mini button { padding: 4px 10px; font-size: 12.5px; }
+  #mini .acciones { display: flex; gap: 4px; }
+  body[data-exhibicion] #mini { display: flex; }
+  body[data-exhibicion] #izq, body[data-exhibicion] #mandos, body[data-exhibicion] #barra-inferior,
+  body[data-exhibicion] #etiquetas, body[data-exhibicion] #ayuda { display: none; }
+
+  #fallo {
+    position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); z-index: 9;
+    max-width: 620px; padding: 20px 24px; border-radius: 12px; display: none;
+    background: #2a1416; border: 1px solid #cc4455; color: #ffd7dc;
+  }
+  #fallo h2 { margin: 0 0 8px; font-size: 16px; color: #ff8fa0; }
+  #fallo code { display: block; margin-top: 10px; padding: 10px; border-radius: 6px;
+                background: rgba(0,0,0,.35); font-size: 12.5px; white-space: pre-wrap; }
+  #diag { position: fixed; left: -9999px; }   /* lo lee scripts/captura.sh, no se ve */
+</style>
+</head>
+<body data-tema="oscuro" data-formato="completo">
+
+<div id="lienzo"><div id="etiquetas"></div></div>
+
+<div id="izq">
+  <header id="cabecera" class="tarjeta">
+    <div class="antetitulo rotulo">Geomorfología · Meandros</div>
+    <h1>Cómo un río rehace su valle</h1>
+    <p class="gancho">Un río de llanura debería bajar recto. Pero cualquier curva pequeña se agranda sola, siglo tras siglo, hasta estrangularse: ¿por qué el agua no la endereza?</p>
+  </header>
+  <div id="cifras"></div>
+  <div id="tarjeta-relato" class="tarjeta" hidden></div>
+  <div id="caja-grafico" class="tarjeta" hidden></div>
+</div>
+
+<div id="mandos" class="tarjeta">
+  <div id="botones-fijos">
+    <button id="btn-tema" class="btn-icono" title="Cambiar de tema (t)" aria-label="Cambiar de tema"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8a6.2 6.2 0 0 0 0 12.4z" fill="currentColor"/></svg></button>
+    <button id="btn-ayuda" class="btn-icono" title="Ayuda (?)" aria-label="Ayuda">?</button>
+    <button id="btn-pantalla" class="btn-icono" title="Pantalla completa (f)" aria-label="Pantalla completa"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+    <button id="btn-exhibicion" class="btn-icono" title="Solo la figura (v)" aria-label="Solo la figura" aria-pressed="false"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 1.6l5.6 3.2v6.4L8 14.4l-5.6-3.2V4.8zM2.4 4.8L8 8l5.6-3.2M8 8v6.4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
+  </div>
+  <div id="cuerpo-mandos">
+    <div id="controles"></div>
+    <h2 class="rotulo">Vista</h2>
+    <div id="vistas" class="barra"></div>
+  </div>
+</div>
+
+<div id="barra-inferior" class="tarjeta">
+  <div id="presets-compacto"></div>
+  <div id="relato-corto"></div>
+</div>
+
+<div id="mini" class="tarjeta" role="toolbar" aria-label="Solo la figura">
+  <div class="acciones" id="mini-acciones">
+    <button id="mini-vista" title="Volver a la vista inicial (0)">↺ Vista inicial</button>
+    <button id="mini-salir" title="Salir de «Solo la figura» (v o Esc)" aria-label="Salir de «Solo la figura»">✕ Salir</button>
+  </div>
+</div>
+
+<div id="ayuda" class="tarjeta" hidden></div>
+<div id="fallo"><h2>La escena no ha podido arrancar</h2><div id="fallo-txt"></div></div>
+<div id="diag">sin-arrancar</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+// ───────────────────────────────────────────────────────────────────────────
+//  ANDAMIAJE — normalmente no hace falta tocarlo. El contenido va más abajo.
+// ───────────────────────────────────────────────────────────────────────────
+const t0Modulo = performance.now();   // el arranque se mide de aquí al primer fotograma
+const diag = document.getElementById('diag');
+const caer = (e) => {
+  const msg = e?.message || String(e);
+  document.getElementById('fallo').style.display = 'block';
+  document.getElementById('fallo-txt').innerHTML =
+    (/Failed to fetch|dynamically imported|NetworkError|ERR_/i.test(msg)
+      ? 'Parece que no se ha podido descargar Three.js desde el CDN. Comprueba la conexión.'
+      : 'Ha fallado el guion de la escena.') + `<code>${msg}</code>`;
+  diag.textContent = 'ERROR ' + msg;
+};
+addEventListener('error', (e) => caer(e.error || e));
+addEventListener('unhandledrejection', (e) => caer(e.reason));
+
+const THREE = await import('three');
+const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+const { CSS2DRenderer, CSS2DObject } = await import('three/addons/renderers/CSS2DRenderer.js');
+
+const $ = (id) => document.getElementById(id);
+const url = new URLSearchParams(location.search);
+// `?t=` congela el tiempo; `?captura=1` corta el bucle tras unos fotogramas (cierre al final).
+const tFijo = url.has('t') ? parseFloat(url.get('t')) : null;
+const modoCaptura = url.get('captura') === '1';
+if (modoCaptura) document.body.dataset.captura = '';
+let exhibicion = url.get('exhibicion') === '1';
+
+// ── Números en formato español ────────────────────────────────────────────
+const formatos = {};
+function num(v, decimales = 1) {
+  const f = formatos[decimales] ??= new Intl.NumberFormat('es-CO',
+    { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+  return f.format(v);
+}
+
+// ── Temas ─────────────────────────────────────────────────────────────────
+// Colores SEMÁNTICOS: la escena pide 'azul' o 'base', nunca un hex. El tema claro va más oscuro para contrastar.
+const TEMAS = {
+  oscuro: {
+    fondo: 0x16181d, suelo: 0x22252c, base: 0x3b414b,
+    azul: 0x5aa2ff, naranja: 0xff9f4a, verde: 0x45c48f, rojo: 0xff6b6b,
+    amarillo: 0xf2c14e, violeta: 0xa98bff, gris: 0x6f7987, metal: 0xaab3c0,
+    hemiCielo: 0xffffff, hemiSuelo: 0x5b6270, hemi: 0.75, sol: 1.7,
+  },
+  claro: {
+    fondo: 0xeceef1, suelo: 0xdde0e5, base: 0xbfc5ce,
+    azul: 0x2a6bd1, naranja: 0xd96d16, verde: 0x1b8f5d, rojo: 0xd13a3a,
+    amarillo: 0xc99609, violeta: 0x7650d0, gris: 0x9099a6, metal: 0x8d97a4,
+    hemiCielo: 0xffffff, hemiSuelo: 0x9aa1ad, hemi: 0.85, sol: 1.5,
+  },
+};
+const clavesPropias = [];
+const alCambiarTemaFns = [];
+const SEMANTICOS = ['azul', 'naranja', 'verde', 'rojo', 'amarillo', 'violeta', 'gris'];
+const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+let tema = 'oscuro';
+// Mismas claves en los dos temas: un color que solo existe en uno sale `undefined` al conmutar y falla en silencio (material negro).
+function ampliarTemas({ claro, oscuro } = {}) {
+  if (!claro || !oscuro) throw new Error('ampliarTemas() necesita { claro: {…}, oscuro: {…} }');
+  const dif = (a, b, en, falta) => Object.keys(a).filter((k) => !(k in b)).map((k) => `"${k}" está en ${en} y falta en ${falta}`);
+  const problemas = [...dif(claro, oscuro, 'claro', 'oscuro'), ...dif(oscuro, claro, 'oscuro', 'claro'),
+    ...Object.keys(claro).filter((k) => k in TEMAS.claro).map((k) => `"${k}" ya existe en TEMAS y no se puede pisar (reservadas: ${Object.keys(TEMAS.claro).join(', ')})`)];
+  if (problemas.length) throw new Error('ampliarTemas(): ' + problemas.join('; '));
+  Object.assign(TEMAS.claro, claro); Object.assign(TEMAS.oscuro, oscuro);
+  clavesPropias.push(...Object.keys(claro));
+}
+function temaInicial() {
+  const f = url.get('tema');
+  if (f === 'claro' || f === 'oscuro') return f;
+  try { const g = localStorage.getItem('lab-tema'); if (g === 'claro' || g === 'oscuro') return g; } catch {}
+  return matchMedia('(prefers-color-scheme: light)').matches ? 'claro' : 'oscuro';
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+const contenedor = $('lienzo');
+const escena = new THREE.Scene();
+escena.fog = new THREE.Fog(0x000000, 28, 55);
+const camara = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+
+// preserveDrawingBuffer solo en captura: WebGL vacía el lienzo tras componerlo y, al parar el bucle, el PNG saldría negro. Fuera de captura cuesta memoria.
+const render = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: modoCaptura });
+render.setSize(innerWidth, innerHeight);
+render.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+render.shadowMap.enabled = true;
+render.shadowMap.autoUpdate = false;   // las sombras solo se recalculan cuando algo se mueve
+contenedor.appendChild(render.domElement);
+
+const rotulos = new CSS2DRenderer({ element: $('etiquetas') });
+rotulos.setSize(innerWidth, innerHeight);
+diag.textContent = 'MONTADO three=' + THREE.REVISION;
+
+const orbita = new OrbitControls(camara, render.domElement);
+orbita.enableDamping = true;
+orbita.dampingFactor = 0.07;
+orbita.maxPolarAngle = Math.PI * 0.49;
+orbita.minDistance = 3; orbita.maxDistance = 40;
+
+// Hemisférica + sol con sombra, nada más: más luz ambiental aplana la escena.
+const hemi = new THREE.HemisphereLight(0xffffff, 0x666666, 0.8);
+const sol = new THREE.DirectionalLight(0xffffff, 1.6);
+sol.position.set(5, 9, 6);
+sol.castShadow = true;
+sol.shadow.mapSize.set(1024, 1024);
+sol.shadow.camera.left = sol.shadow.camera.bottom = -8;     // ajustar al tamaño de la maqueta
+sol.shadow.camera.right = sol.shadow.camera.top = 8;
+sol.shadow.camera.near = 1; sol.shadow.camera.far = 30;
+sol.shadow.radius = 3;
+sol.shadow.bias = -0.0005;
+escena.add(hemi, sol);
+
+const suelo = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ roughness: 1 }));
+suelo.rotation.x = -Math.PI / 2;
+suelo.position.y = -0.5;
+suelo.receiveShadow = true;
+escena.add(suelo);
+
+// Material con color semántico registrado: al cambiar de tema se recolorean todos.
+const materiales = [];
+function mat(clave, opciones = {}) {
+  const m = new THREE.MeshStandardMaterial({
+    roughness: 0.8, metalness: 0.05,
+    ...(clave === 'metal' ? { roughness: 0.5, metalness: 0.3 } : {}),   // sin mapa de entorno, más metalness sale negro
+    ...opciones, color: TEMAS[tema][clave],
+  });
+  materiales.push([m, clave]);
+  return m;
+}
+suelo.material = mat('suelo', { roughness: 1 });
+
+let coloresUI = null;   // se invalida en aplicarTema(): el gráfico lo pide en cada repintado
+function colorUI() {
+  if (coloresUI) return coloresUI;
+  const s = getComputedStyle(document.body);
+  const c = { texto: s.getPropertyValue('--texto').trim(), tenue: s.getPropertyValue('--tenue').trim(),
+              borde: s.getPropertyValue('--borde').trim(), fondo: hex(TEMAS[tema].fondo) };
+  for (const k of [...SEMANTICOS, ...clavesPropias]) c[k] = hex(TEMAS[tema][k]);
+  return coloresUI = c;
+}
+function aplicarTema(nuevo, guardar = false) {
+  tema = nuevo; coloresUI = null;
+  const T = TEMAS[tema];
+  document.body.dataset.tema = tema;
+  for (const k of SEMANTICOS) document.body.style.setProperty('--c-' + k, hex(T[k]));
+  escena.background = new THREE.Color(T.fondo);
+  escena.fog.color.setHex(T.fondo);
+  hemi.color.setHex(T.hemiCielo); hemi.groundColor.setHex(T.hemiSuelo);
+  hemi.intensity = T.hemi; sol.intensity = T.sol;
+  for (const [m, clave] of materiales) m.color.setHex(T[clave]);
+  for (const fn of alCambiarTemaFns) fn(tema, T);
+  if (guardar) { try { localStorage.setItem('lab-tema', tema); } catch {} }
+  sombrasSucias = true;
+  pedirFotograma();
+  if (arrancado) pintarGrafico();
+}
+
+// ── Render bajo demanda ───────────────────────────────────────────────────
+let pedido = true, sombrasSucias = true, arrancado = false;
+function pedirFotograma() { pedido = true; }
+orbita.addEventListener('change', pedirFotograma);
+
+// ── Estado: fuente única de verdad ────────────────────────────────────────
+let estado = null, anterior = null;
+const alCambiarFns = [];
+function requerirEstado(quien) {
+  if (!estado) throw new Error(`${quien}() se llamó antes que definirEstado(): declara el estado primero`);
+}
+// `?e=clave:valor,clave:valor` pisa el estado inicial (true/false y números se convierten).
+function definirEstado(inicial) {
+  estado = { ...inicial };
+  for (const par of (url.get('e') || '').split(',').filter(Boolean)) {
+    const i = par.indexOf(':'); if (i < 0) continue;
+    const k = par.slice(0, i).trim(), v = par.slice(i + 1).trim();
+    estado[k] = v === 'true' ? true : v === 'false' ? false : (v !== '' && !isNaN(+v)) ? +v : v;
+  }
+  anterior = null;
+}
+function cambiar(parcial) {
+  requerirEstado('cambiar');
+  anterior = estado; estado = { ...estado, ...parcial };
+  refrescar();
+}
+function alCambiar(fn) { alCambiarFns.push(fn); }
+// Para lo que mat() no recolorea (colores por instancia, etc.): fn(nombre, colores), colores = hex numéricos del tema activo (con los de ampliarTemas()).
+function alCambiarTema(fn) { alCambiarTemaFns.push(fn); fn(tema, TEMAS[tema]); }
+
+// ── Mandos ────────────────────────────────────────────────────────────────
+const grupos = [], deslizadores = [], capas = [], atajos = [];
+let elPrincipal = null;
+const el = (etiqueta, clase, html) => {
+  const e = document.createElement(etiqueta);
+  if (clase) e.className = clase;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+};
+
+// Botones segmentados. Opción = { texto, tecla?, valor?, fija? }:
+//   · `valor`: lo que toma la clave del grupo al pulsarla;
+//   · `fija: { clave: valor, … }`: fija además (o en vez de `valor`) varias claves a la vez, un preset sin valor centinela.
+//     El botón se marca activo cuando el estado coincide con TODO lo que fija. Ej.: { texto: 'Latido', fija: { latir: true } }.
+// { principal: true }: el grupo pasa a la barra inferior en compacto.
+// { exhibicion: true }: el grupo también sale en la mini barra de «Solo la figura» (vale para varios; sin ninguno, la mini barra no lo lleva).
+function efectoDeOpcion(clave, o) {
+  const r = { ...(o.valor !== undefined ? { [clave]: o.valor } : {}), ...(o.fija || {}) };
+  if (!Object.keys(r).length) throw new Error(`grupo("${clave}"): la opción "${o.texto}" necesita valor o fija`);
+  return r;
+}
+const opcionActiva = (r) => Object.entries(r).every(([k, v]) => String(estado[k]) === String(v));
+function grupo(rotulo, clave, opciones, { principal = false, exhibicion: enMini = false } = {}) {
+  requerirEstado('grupo');
+  const caja = el('div', 'grupo'), seg = el('div', 'seg');
+  seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', rotulo);
+  caja.append(el('span', 'rotulo', rotulo), seg);
+  const efectos = opciones.map((o) => efectoDeOpcion(clave, o));
+  const botones = opciones.map((o, i) => {
+    const b = el('button'); b.textContent = o.texto;
+    b.addEventListener('click', () => cambiar(efectos[i]));
+    seg.append(b);
+    if (o.tecla) atajos.push({ tecla: o.tecla, texto: `${rotulo}: ${o.texto}`, fn: () => cambiar(efectos[i]) });
+    return b;
+  });
+  const g = { clave, opciones, efectos, botones, botonesMini: [] };
+  grupos.push(g);
+  if (enMini) {
+    const cajaMini = el('div', 'grupo'), segMini = el('div', 'seg');
+    segMini.setAttribute('role', 'group'); segMini.setAttribute('aria-label', rotulo);
+    g.botonesMini = opciones.map((o, i) => {
+      const b = el('button'); b.textContent = o.texto;
+      b.addEventListener('click', () => cambiar(efectos[i]));
+      segMini.append(b);
+      return b;
+    });
+    cajaMini.append(segMini);
+    $('mini').insertBefore(cajaMini, $('mini-acciones'));
+  }
+  if (principal) elPrincipal = caja; else $('controles').append(caja);
+  if (principal) colocarPrincipal();
+  ajustarGrupos();
+}
+// Reparte cada grupo visible (panel, barra compacta, mini barra): una fila; si no cabe, 2, 3… filas parejas
+// (k = ceil(n / filas)), la primera disposición sin desbordes. Con filas desiguales (5 → 3 + 2) la rejilla usa
+// k·m columnas y la última fila columnas más anchas, sin hueco. Lo oculto (display: none) no se mide: se ajusta al mostrarse.
+function ajustarGrupos() {
+  const mcd = (a, b) => (b ? mcd(b, a % b) : a);
+  for (const seg of document.querySelectorAll('.seg')) {
+    const bs = [...seg.children], n = bs.length;
+    if (n < 2 || !seg.getClientRects().length) continue;
+    const cabe = () => seg.scrollWidth <= seg.clientWidth + 1 && bs.every((b) => b.scrollWidth <= b.clientWidth + 1);
+    const poner = (k) => {   // k botones por fila; 0 = todos en una fila (flex)
+      seg.classList.toggle('fil', k > 0);
+      const m = k ? n - k * (Math.ceil(n / k) - 1) : 0;   // botones de la última fila
+      const cols = k ? k * m / mcd(k, m) : 1;
+      seg.style.setProperty('--c', cols);
+      bs.forEach((b, i) => { const span = k ? cols / (i >= n - m ? m : k) : 1; b.style.gridColumn = span > 1 ? `span ${span}` : ''; });
+    };
+    poner(0);
+    for (let filas = 2, previo = n; filas <= n && !cabe(); filas++) {
+      const k = Math.ceil(n / filas);
+      if (k !== previo) poner(previo = k);
+    }
+  }
+}
+function colocarPrincipal() {
+  if (!elPrincipal) return;
+  if (document.body.dataset.formato === 'compacto') $('presets-compacto').append(elPrincipal);
+  else $('controles').prepend(elPrincipal);
+}
+// `tambien: { clave: valor }`: claves que se fijan junto con el valor al mover el deslizador (p. ej. { latir: false }
+// congela la animación en ese instante).
+// `mostrar: (e, v) => valor`: lo que enseñan mango y eco cuando no es estado[clave] a secas (p. ej. el instante del latido,
+// `v.ms`); se refresca con el texto vivo, y al arrastrar manda el mango.
+function deslizador(rotulo, clave, { min = 0, max = 1, paso = 0.01, formato = (v) => num(v, 2), tambien = {}, mostrar = null } = {}) {
+  requerirEstado('deslizador');
+  const d = el('div', 'control', `<label><span></span><b></b></label><input type="range" min="${min}" max="${max}" step="${paso}">`);
+  d.querySelector('span').textContent = rotulo;
+  const inp = d.querySelector('input');
+  inp.setAttribute('aria-label', rotulo);
+  inp.addEventListener('input', () => cambiar({ ...tambien, [clave]: +inp.value }));
+  deslizadores.push({ clave, formato, inp, mostrar, eco: d.querySelector('b') });
+  $('controles').append(d);
+}
+function capa(rotulo, clave, tecla) {
+  requerirEstado('capa');
+  let caja = $('controles').querySelector('.chips');
+  if (!caja) { caja = el('div', 'chips'); $('controles').append(caja); }
+  const b = el('button'); b.textContent = rotulo;
+  b.addEventListener('click', () => cambiar({ [clave]: !estado[clave] }));
+  caja.append(b);
+  capas.push({ clave, b });
+  if (tecla) atajos.push({ tecla, texto: `Capa: ${rotulo}`, fn: () => cambiar({ [clave]: !estado[clave] }) });
+}
+function pintarDeslizadores(soloVivos = false) {
+  for (const s of deslizadores) {
+    if (soloVivos && !s.mostrar) continue;
+    const v = s.mostrar ? s.mostrar(estado, derivadas) : estado[s.clave];
+    s.inp.value = v; s.eco.textContent = s.formato(v);
+  }
+}
+function pintarMandos() {
+  for (const g of grupos) g.efectos.forEach((r, i) => {
+    const on = opcionActiva(r);
+    for (const b of [g.botones[i], g.botonesMini[i]]) {
+      if (!b) continue;
+      b.classList.toggle('activo', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  });
+  pintarDeslizadores();
+  for (const c of capas) c.b.setAttribute('aria-pressed', String(!!estado[c.clave]));
+}
+
+// ── Cifras, relato, etiquetas y gráfico ───────────────────────────────────
+// Todas reciben (estado, derivadas): lo que devuelve vivo(t, e) (ver «Texto que sigue a la animación»), `{}` sin vivo.
+const cifras = [];
+function cifra(rotulo, fn) {
+  const c = el('div', 'cifra tarjeta', `<span class="rotulo"></span><span class="valor num"></span><span class="sub"></span>`);
+  c.querySelector('.rotulo').textContent = rotulo;
+  $('cifras').append(c);
+  $('cifras').dataset.n = cifras.length + 1;
+  cifras.push({ fn, valor: c.querySelector('.valor'), sub: c.querySelector('.sub') });
+}
+let fnRelato = null, fnRelatoCorto = null;
+function relato(fn) { fnRelato = fn; $('tarjeta-relato').hidden = false; }
+function relatoCorto(fn) { fnRelatoCorto = fn; }
+
+const etiquetas = [];
+// Etiqueta anclada a un objeto 3D; `texto`: string o función del estado.
+// `lado: 'izq' | 'der'`: a un costado del ancla en vez de centrada. `opcional: true`: fuera en compacto.
+// `prioridad` (0; mayor = más importante) manda cuando dos se pisan (resolverEtiquetas()).
+// Devuelve el CSS2DObject: `.visible = false` la quita del todo.
+function etiqueta(objeto, texto, { color = 'azul', alto = 0, lado = '', opcional = false, prioridad = 0 } = {}) {
+  const div = el('div', 'etiqueta ' + color + (opcional ? ' opc' : ''));
+  const obj = new CSS2DObject(div);
+  obj.position.y = alto;
+  if (lado) obj.center.set(lado === 'izq' ? 1.1 : -0.1, 0.5);
+  objeto.add(obj);
+  etiquetas.push({ div, texto, prioridad, tapada: false, t0: -Infinity });
+  return obj;
+}
+// Tras dibujar cada fotograma (una escena quieta no gasta nada) mide los rectángulos de las etiquetas visibles:
+//  · se tapa la que toca un panel o se sale de la ventana;
+//  · si dos se solapan, se tapa la de menor prioridad (a igual, gana la que ya se veía, luego la creada antes);
+//    una tapada nunca hace perder sitio a otra de mayor prioridad;
+//  · «tapar» es opacity → 0 (.tapada), no display: none, para seguir midiéndola y saber cuándo puede volver;
+//  · histéresis contra el parpadeo al girar: para taparse basta tocar (margen 0–2 px), para volver debe quedar
+//    despejada por 8–10 px, y cada etiqueta mantiene su estado ≥ 300 ms.
+// Cuesta ≈ una lectura de rectángulos por etiqueta y panel en cada fotograma dibujado.
+let elementosPanel = null;
+function resolverEtiquetas() {
+  if (exhibicion || !etiquetas.length) return;
+  elementosPanel ??= [...document.querySelectorAll('#izq > *, #mandos, #barra-inferior, #mini, #ayuda')];
+  const paneles = [];
+  for (const p of elementosPanel) { const r = p.getBoundingClientRect(); if (r.width && r.height) paneles.push(r); }
+  const W = innerWidth, H = innerHeight, lista = [], ahora = performance.now();
+  let pendiente = false;
+  for (const e of etiquetas) {
+    const r = e.div.getBoundingClientRect();
+    if (r.width) lista.push({ e, r });
+    else if (e.tapada) { e.tapada = false; e.div.classList.remove('tapada'); }   // oculta por la escena: se reinicia
+  }
+  lista.sort((a, b) => b.e.prioridad - a.e.prioridad || a.e.tapada - b.e.tapada);
+  const choca = (r, o, m) => r.left < o.right + m && r.right > o.left - m && r.top < o.bottom + m && r.bottom > o.top - m;
+  const puestas = [];
+  for (const { e, r } of lista) {
+    const mp = e.tapada ? 8 : 0, ml = e.tapada ? 10 : 2;
+    const cabe = r.left >= mp && r.top >= mp && r.right <= W - mp && r.bottom <= H - mp &&
+      !paneles.some((p) => choca(r, p, mp)) && !puestas.some((o) => choca(r, o, ml));
+    if (cabe) puestas.push(r);
+    if (e.tapada !== cabe) continue;
+    if (ahora - e.t0 < 300) { pendiente = true; continue; }   // permanencia mínima: sin parpadeo aunque el borde tiemble
+    e.tapada = !cabe; e.t0 = ahora; e.div.classList.toggle('tapada', e.tapada);
+  }
+  // Si se aplazó un cambio y la cámara ya se paró, un fotograma más lo aplica.
+  if (pendiente) setTimeout(pedirFotograma, 320);
+}
+
+const graficos = [];
+// fn(ctx, w, h, estado, colores, derivadas) dibuja en un canvas 2D en píxeles CSS (ya escalado por dpr).
+function grafico(rotulo, fn) {
+  const caja = $('caja-grafico');
+  caja.hidden = false;
+  caja.append(el('div', 'rotulo', ''));
+  caja.lastChild.textContent = rotulo;
+  const canvas = el('canvas');
+  canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', rotulo);
+  caja.append(canvas);
+  graficos.push({ fn, canvas });
+}
+function pintarGrafico() {
+  if (!estado || document.body.dataset.formato !== 'completo') return;
+  if (vivo && !vivoAlDia) calcularVivo();   // un gráfico pedido antes del primer refresco ya recibe sus derivadas
+  const dpr = Math.min(devicePixelRatio, 2);
+  const colores = colorUI();   // cacheado por tema: se pinta hasta ~30 veces por segundo con vivo
+  for (const g of graficos) {
+    const r = g.canvas.getBoundingClientRect();
+    if (!r.width) continue;
+    const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+    if (g.canvas.width !== w || g.canvas.height !== h) { g.canvas.width = w; g.canvas.height = h; }
+    const ctx = g.canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, r.width, r.height);
+    g.fn(ctx, r.width, r.height, estado, colores, derivadas);
+  }
+}
+// Solo toca el DOM si el texto cambió: con vivo se llama ~9 veces por segundo y casi todo sale igual.
+function escribirSi(nodo, campo, valor) {
+  const k = '_ult_' + campo;
+  if (nodo[k] !== valor) { nodo[k] = valor; nodo[campo] = valor; }
+}
+function pintarTextos() {
+  const v = derivadas;
+  if (fnRelato) escribirSi($('tarjeta-relato'), 'innerHTML', fnRelato(estado, v));
+  if (fnRelatoCorto) escribirSi($('relato-corto'), 'innerHTML', fnRelatoCorto(estado, v));
+  for (const c of cifras) {
+    const r = c.fn(estado, v);
+    escribirSi(c.valor, 'innerHTML', `${r.valor}${r.unidad ? `<small>${r.unidad}</small>` : ''}`);
+    escribirSi(c.sub, 'textContent', r.sub || '');
+  }
+  for (const e of etiquetas) escribirSi(e.div, 'textContent', typeof e.texto === 'function' ? e.texto(estado, v) : e.texto);
+}
+// Longitud del texto visible ya renderizado, al final de la línea OK de #diag: captura.mjs la
+// lee para avisar de relatos largos, algo que el código no delata porque el texto depende del estado.
+let diagOK = '';
+const largoTexto = (id) => ($(id).textContent || '').replace(/\s+/g, ' ').trim().length;
+function medirTexto() {
+  if (diagOK) diag.textContent = `${diagOK} relato=${largoTexto('tarjeta-relato')} corto=${largoTexto('relato-corto')}` +
+    (exhibicion ? ' exhibicion=1' : '');
+}
+function refrescar() {
+  for (const fn of alCambiarFns) fn(estado, anterior);
+  calcularVivo();
+  pintarMandos(); pintarTextos(); pintarGrafico(); medirTexto();
+  sombrasSucias = true; pedirFotograma();
+}
+
+// ── Transiciones ──────────────────────────────────────────────────────────
+// Interpola propiedades numéricas de `objeto`; `alActualizar` (opcional) se llama en cada paso.
+// En captura y en el primer pintado se aplica de golpe, para que la imagen sea reproducible.
+const transiciones = [];
+function suavizar(objeto, destinos, ms = 400, alActualizar) {
+  if (!arrancado || modoCaptura || ms <= 0) {
+    Object.assign(objeto, destinos); alActualizar?.();
+    sombrasSucias = true; pedirFotograma(); return;
+  }
+  const previa = transiciones.findIndex((x) => x.objeto === objeto);
+  if (previa >= 0) transiciones.splice(previa, 1);
+  const desde = {};
+  for (const k in destinos) desde[k] = objeto[k];
+  transiciones.push({ objeto, desde, destinos, ms, alActualizar, t0: performance.now() });
+}
+function avanzarTransiciones() {
+  if (!transiciones.length) return false;
+  const ahora = performance.now();
+  for (let i = transiciones.length - 1; i >= 0; i--) {
+    const x = transiciones[i];
+    const p = Math.min(1, (ahora - x.t0) / x.ms);
+    const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
+    for (const k in x.destinos) x.objeto[k] = x.desde[k] + (x.destinos[k] - x.desde[k]) * e;
+    x.alActualizar?.();
+    if (p >= 1) transiciones.splice(i, 1);
+  }
+  return true;
+}
+
+// ── Formato, encuadre y vistas ────────────────────────────────────────────
+let formato = '';
+function calcularFormato() {
+  const f = url.get('formato');
+  if (f === 'compacto' || f === 'completo') return f;
+  return (document.fullscreenElement || (innerWidth >= 960 && innerHeight >= 540)) ? 'completo' : 'compacto';
+}
+// Zona de la pantalla que los paneles dejan libre para la figura.
+function zonaLibre() {
+  const W = innerWidth, H = innerHeight;
+  // Sin paneles: toda la ventana, salvo la franja de la mini barra para que no tape la figura.
+  if (exhibicion) return { x0: 0, x1: W, y0: 0, y1: $('mini').getBoundingClientRect().top - 6 };
+  if (formato === 'completo') {
+    const izq = $('izq').getBoundingClientRect(), der = $('mandos').getBoundingClientRect();
+    return { x0: izq.right + 8, x1: der.left - 8, y0: 0, y1: H };
+  }
+  return { x0: 0, x1: W, y0: 0, y1: $('barra-inferior').getBoundingClientRect().top - 4 };
+}
+// setViewOffset descentra la proyección en vez de mover el objetivo: la figura se recoloca en el
+// hueco libre y la órbita del ratón sigue girando en torno al centro de interés.
+function encuadrar() {
+  const W = innerWidth, H = innerHeight, z = zonaLibre();
+  camara.setViewOffset(W, H, -((z.x0 + z.x1) / 2 - W / 2), -((z.y0 + z.y1) / 2 - H / 2), W, H);
+}
+// Cada vista: { pos, mira } y, opcional:
+//  · `compacto: { pos, mira }`: encuadre propio del compacto (2:1, iframe de la nota); lo no indicado se hereda. Una figura alta
+//    que en el completo cabe justa puede necesitar otra distancia o centro;
+//  · `oculta: true`: sin botón ni atajo, usable con mirarDesde('clave') (p. ej. en alCambiar() al entrar en un modo de sección);
+//    puede crearse o recolocarse en cualquier momento.
+let VISTAS = {};
+const vistasVisibles = () => Object.keys(VISTAS).filter((k) => !VISTAS[k].oculta);
+const vistaBase = () => (VISTAS.inicial ? 'inicial' : vistasVisibles()[0]);
+// Relación ancho/alto de la zona libre para la que se eligen las vistas; un número, o uno por formato
+// ({ completo: 1.2, compacto: 2.2 }). Con la zona más estrecha la cámara se aleja para no perder ancho; con la más ancha no se acerca.
+let ASPECTO_BASE = 1.45;
+const aspectoBase = () => (typeof ASPECTO_BASE === 'number' ? ASPECTO_BASE : (ASPECTO_BASE[formato] ?? ASPECTO_BASE.completo ?? 1.45));
+let vistaActual = 'inicial';
+// El fov es vertical: al estrechar la zona libre se pierde ANCHO, no alto; la cámara se retira lo que haga falta.
+function factorDistancia() {
+  const z = zonaLibre();
+  const ancho = Math.max(80, z.x1 - z.x0), alto = Math.max(80, z.y1 - z.y0);
+  return Math.min(3, Math.max(1, (innerHeight / alto) * Math.max(1, aspectoBase() / (ancho / alto))));
+}
+let kVista = 1;   // factor de la última colocación de cámara
+function mirarDesde(clave) {
+  let v = VISTAS[clave]; if (!v) return;
+  if (formato === 'compacto' && v.compacto) v = { ...v, ...v.compacto };
+  vistaActual = clave;
+  const k = kVista = factorDistancia();
+  const mira = new THREE.Vector3(...(v.mira || [0, 0, 0]));
+  camara.position.set(...v.pos).sub(mira).multiplyScalar(k).add(mira);
+  orbita.target.copy(mira);
+  orbita.update();
+  document.querySelectorAll('[data-vista]').forEach((b) => b.classList.toggle('activo', b.dataset.vista === clave));
+  pedirFotograma();
+}
+function actualizarFormato() {
+  const nuevo = calcularFormato(), cambio = nuevo !== formato;
+  formato = nuevo;
+  document.body.dataset.formato = formato;
+  if (cambio) colocarPrincipal();
+  ajustarGrupos();
+  camara.aspect = innerWidth / innerHeight;
+  render.setSize(innerWidth, innerHeight);
+  rotulos.setSize(innerWidth, innerHeight);
+  encuadrar();
+  if (cambio && arrancado) mirarDesde(vistaActual);
+  pintarGrafico();
+  pedirFotograma();
+}
+addEventListener('resize', actualizarFormato);
+document.addEventListener('fullscreenchange', actualizarFormato);
+
+// ── Animación continua (opcional) ─────────────────────────────────────────
+// ANIMADA = true y actualizar = (t, e) => {...}, función PURA de t (con ?t= sale siempre el mismo fotograma).
+// SOMBRAS_ANIMADAS = false si lo que se mueve NO proyecta sombra (agua, llama, partículas, uniforme de shader): si no, el mapa
+// de sombras de TODA la escena se redibuja cada fotograma, el mayor gasto de GPU con miles de instancias. Si algo que sí
+// proyecta cambia fuera de una transición, marcarSombras().
+// ANIMADA puede cambiar en cualquier momento: el botón de pausa aparece y desaparece con ella, y al volver a animarse se reanuda.
+let ANIMADA = false, SOMBRAS_ANIMADAS = true, actualizar = (t, e) => {};
+function marcarSombras() { sombrasSucias = true; pedirFotograma(); }
+let pausado = tFijo !== null, t = tFijo ?? 0;
+
+// ── Texto que sigue a la animación (opcional) ─────────────────────────────
+// Con animación continua, cifras, relato, etiquetas y gráfico se quedarían congelados (solo se recalculan al cambiar el estado).
+// Para que sigan al movimiento: vivo = (t, e) => ({ ms: …, presion: … }), función PURA de (t, estado) como actualizar. Sus
+// valores llegan como último argumento a cifra(e, v), relato(e, v), relatoCorto(e, v), etiqueta(obj, (e, v) => …),
+// grafico(…, e, colores, v) y deslizador(…, { mostrar: (e, v) => … }). Es la única fuente de lo que cambia con t: la escena 3D
+// puede leer lo mismo (vivo(t, e)) y no se contradicen.
+// El DOM se refresca ≈ 9 veces por s y solo si el texto cambió; el gráfico, ≈ 30. En pausa, en «Solo la figura» y en captura
+// el texto es exacto al instante t (?t= incluido). vivo debe ser barata.
+let vivo = null, derivadas = {}, vivoAlDia = false;
+const TEXTO_MS = 110, GRAFICO_MS = 30;
+let tVivo = NaN, ultimoTexto = 0, ultimoGrafico = 0;
+function calcularVivo() {
+  derivadas = (vivo && estado ? vivo(t, estado) : null) || {};
+  tVivo = t; ultimoTexto = ultimoGrafico = performance.now(); vivoAlDia = true;
+}
+function seguirTexto() {   // en el bucle, tras actualizar()
+  if (!vivo || exhibicion) return;
+  const ahora = performance.now(), exacto = pausado || modoCaptura;
+  const texto = exacto || ahora - ultimoTexto >= TEXTO_MS, graf = exacto || ahora - ultimoGrafico >= GRAFICO_MS;
+  if (exacto ? t === tVivo : !texto && !graf) return;
+  derivadas = vivo(t, estado) || {}; tVivo = t;
+  if (texto) { pintarTextos(); pintarDeslizadores(true); ultimoTexto = ahora; }
+  if (graf) { pintarGrafico(); ultimoGrafico = ahora; }
+  if (exacto) medirTexto();
+}
+
+// ── Pedestal: base tipo banco de laboratorio; el suelo baja hasta su pie ──
+function pedestal({ ancho = 8, fondo = 5, alto = 0.5 } = {}) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(ancho, alto, fondo), mat('base'));
+  m.position.y = -alto / 2;
+  m.castShadow = m.receiveShadow = true;
+  suelo.position.y = -alto;
+  escena.add(m);
+  return m;
+}
+
+// ── Ayuda, tema y pantalla completa ───────────────────────────────────────
+// ayuda(html): párrafos al pie de la ayuda (supuestos del modelo, escalas…), en orden.
+const notasAyuda = [];
+let arranqueMs = 0;   // lo escribe el bucle
+function ayuda(html) { notasAyuda.push(html); }
+function pintarAyuda() {
+  const base = [['h / ?', 'Esta ayuda'], ['t', 'Cambiar tema'], ['f', 'Pantalla completa'], ['v', 'Solo la figura'], ['Esc', 'Salir de «Solo la figura»'], ['0', 'Vista inicial']];
+  const filas = [...base, ...atajos.filter((a) => !a.activo || a.activo()).map((a) => [a.tecla === ' ' ? 'Espacio' : a.tecla, a.texto])];
+  $('ayuda').innerHTML = '<h2 class="rotulo">Atajos</h2><ul>' +
+    filas.map(([k, txt]) => `<li><kbd>${k}</kbd><span>${txt}</span></li>`).join('') +
+    '</ul><p style="margin:8px 0 0;color:var(--tenue)">arrastrar: girar · rueda: acercar · botón derecho: desplazar</p>' +
+    notasAyuda.map((h) => `<p class="nota">${h}</p>`).join('') +
+    (arranqueMs ? `<p class="arranque">Arrancó en ${num(arranqueMs / 1000, 1)} s</p>` : '');
+}
+function alternarAyuda() { const a = $('ayuda'); if (a.hidden) pintarAyuda(); a.hidden = !a.hidden; pedirFotograma(); }
+async function pantallaCompleta() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch { window.open(location.href, '_blank'); }   // iframe sin permiso de pantalla completa
+}
+// «Solo la figura»: sin textos ni menús, con mini barra. La cámara conserva el ángulo; solo se acerca o aleja lo que pida la nueva zona libre.
+function alternarExhibicion(activar = !exhibicion, { volverFoco = true } = {}) {
+  exhibicion = !!activar;
+  if (exhibicion) $('ayuda').hidden = true;
+  document.body.toggleAttribute('data-exhibicion', exhibicion);
+  $('btn-exhibicion').setAttribute('aria-pressed', String(exhibicion));
+  ajustarGrupos();
+  if (arrancado) {
+    const k = factorDistancia();
+    camara.position.sub(orbita.target).multiplyScalar(k / kVista).add(orbita.target);
+    kVista = k;
+    orbita.update();
+    encuadrar();
+    medirTexto();
+    if (!exhibicion && vivo) { calcularVivo(); pintarTextos(); pintarDeslizadores(true); pintarGrafico(); }   // se puso al día mientras estaba oculto
+    pedirFotograma();
+    // Al entrar no se enfoca ningún botón: con el foco en «Salir», la barra espaciadora (pausa) lo pulsaría.
+    if (!exhibicion && volverFoco) $('btn-exhibicion').focus({ preventScroll: true });
+  }
+}
+$('btn-exhibicion').addEventListener('click', () => alternarExhibicion());
+$('mini-salir').addEventListener('click', () => alternarExhibicion(false));
+$('mini-vista').addEventListener('click', () => mirarDesde(vistaBase()));
+$('btn-tema').addEventListener('click', () => aplicarTema(tema === 'oscuro' ? 'claro' : 'oscuro', true));
+$('btn-ayuda').addEventListener('click', alternarAyuda);
+$('btn-pantalla').addEventListener('click', pantallaCompleta);
+addEventListener('keydown', (ev) => {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const k = ev.key;
+  if ((k === '?' || k === 'h') && !exhibicion) alternarAyuda();
+  else if (k === 'Escape' && !$('ayuda').hidden) { $('ayuda').hidden = true; pedirFotograma(); }
+  // En pantalla completa el primer Esc se lo queda el navegador (sale de la pantalla completa y ni
+  // llega aquí); el segundo sale de «Solo la figura». La guarda cubre a los navegadores que sí lo entregan.
+  else if (k === 'Escape' && exhibicion && !document.fullscreenElement) alternarExhibicion(false);
+  else if (k === 'v') alternarExhibicion();
+  else if (k === 't') $('btn-tema').click();
+  else if (k === 'f') pantallaCompleta();
+  else if (k === '0') mirarDesde(vistaBase());
+  else if (/^[1-9]$/.test(k) && atajos.every((a) => a.tecla !== k) && vistasVisibles()[k - 1] && !ev.target.matches?.('input[type=range]')) {
+    mirarDesde(vistasVisibles()[k - 1]);
+  } else atajos.find((a) => a.tecla === k)?.fn();
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+//  CONTENIDO — Cómo un río rehace su valle (migración de meandros).
+//  El modelo corre una vez al arrancar (determinista, semilla fija) y guarda instantáneas cada
+//  5 años. Todo lo que se ve sale de analizar(años) y de construir(años), que leen de ahí: el
+//  cauce, el color del suelo, las flechas, el corte, las cifras, las etiquetas y el relato.
+// ───────────────────────────────────────────────────────────────────────────
+definirEstado({ anios: 400, vista: 'relieve', migracion: true, inicial: true });
+
+// Tintes físicos del terreno (no son leyenda): arena recién depositada → pradera → bosque.
+const TERRENO = {
+  arena: 0xe2cf9e, prado: 0x93b957, pasto: 0x8f8f52, sotobosque: 0x4d5f2e, lecho: 0x8a7552, fango: 0x3b3a26, pantano: 0x55603a,
+  humus: 0x5a4330, limo: 0x8a7a64, arcilla: 0x6f6a66, grava: 0x9a948a, deposito: 0xd0b98a,
+  aguaSomera: 0x5fa3a0, aguaProfunda: 0x1f4f7a, aguaLago: 0x2c4a3e, espuma: 0xe8f1f2,
+  copaJoven: 0x7fa447, copaVieja: 0x3f6a2c, arbusto: 0x9cb35a,
+};
+ampliarTemas({ oscuro: { ...TERRENO }, claro: { ...TERRENO, sotobosque: 0x56683a, aguaProfunda: 0x245a88 } });
+
+// ── Modelo ────────────────────────────────────────────────────────────────
+// Se copia tal cual a la escena (bloque <sim>).
+// <sim>
+function simular(P) {
+  const { W, D, Cf, kl, dt, TMAX, SNAP, ds0, crdist, X0, X1, semilla, VX0, VX1, VZ0, VZ1, CELDA } = P;
+  const OMEGA = -1, GAMMA = 2.5, alpha = 2 * Cf / D;
+  let s = semilla >>> 0;
+  const azar = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  // cauce inicial: casi recto, con perturbaciones suaves de pocos metros
+  let x = [], y = [];
+  const n0 = Math.round((X1 - X0) / ds0);
+  const ondas = [];
+  for (let k = 0; k < 14; k++) ondas.push({ l: 250 + azar() * 1400, f: azar() * 6.283, a: (0.6 + azar() * 2.2) * (P.amp ?? 1) });
+  for (let i = 0; i <= n0; i++) {
+    const xi = X0 + i * ds0;
+    let yi = 0; for (const o of ondas) yi += o.a * Math.sin(xi / o.l * 6.283 + o.f);
+    x.push(xi); y.push(yi);
+  }
+  const PAD0 = 8, PAD1 = 30;
+  // rejilla de ocupación de la ventana visible
+  const NX = Math.round((VX1 - VX0) / CELDA) + 1, NZ = Math.round((VZ1 - VZ0) / CELDA) + 1;
+  const ultimo = new Float32Array(NX * NZ).fill(-1e9), inicio = new Float32Array(NX * NZ).fill(-1);
+  const tramos = new Map();   // celda -> [ini, fin, ini, fin, ...] de tramos de ocupación ya cerrados
+  const primera = new Float32Array(NX * NZ).fill(-1);
+  const snaps = [], cortes = [];
+  let anio = 0, paso = 0;
+
+  const remuestrear = () => {
+    const sAcum = [0];
+    for (let i = 1; i < x.length; i++) sAcum.push(sAcum[i - 1] + Math.hypot(x[i] - x[i - 1], y[i] - y[i - 1]));
+    const L = sAcum[sAcum.length - 1], n = Math.max(2, Math.round(L / ds0));
+    const nx = [], ny = []; let j = 0;
+    for (let k = 0; k <= n; k++) {
+      const sk = L * k / n;
+      while (j < sAcum.length - 2 && sAcum[j + 1] < sk) j++;
+      const u = (sk - sAcum[j]) / ((sAcum[j + 1] - sAcum[j]) || 1);
+      nx.push(x[j] + (x[j + 1] - x[j]) * u); ny.push(y[j] + (y[j + 1] - y[j]) * u);
+    }
+    x = nx; y = ny;
+  };
+  const curvatura = () => {
+    const n = x.length, C = new Float64Array(n);
+    for (let i = 1; i < n - 1; i++) {
+      const dx = (x[i + 1] - x[i - 1]) / 2, dy = (y[i + 1] - y[i - 1]) / 2;
+      const ddx = x[i + 1] - 2 * x[i] + x[i - 1], ddy = y[i + 1] - 2 * y[i] + y[i - 1];
+      C[i] = (dx * ddy - dy * ddx) / Math.pow(dx * dx + dy * dy, 1.5);
+    }
+    C[0] = C[1]; C[n - 1] = C[n - 2];
+    const S = new Float64Array(n);   // suavizado 1-2-1 contra el ruido de malla
+    for (let i = 0; i < n; i++) S[i] = (C[Math.max(0, i - 1)] + 2 * C[i] + C[Math.min(n - 1, i + 1)]) / 4;
+    return S;
+  };
+  const migracion = (C) => {
+    const n = x.length, R1 = new Float64Array(n);
+    const dec = Math.exp(-alpha * ds0);
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      const R0 = kl * W * C[i];
+      num = R0 + dec * num; den = 1 + dec * den;   // convolución recursiva hacia aguas arriba
+      R1[i] = OMEGA * R0 + GAMMA * num / den;
+    }
+    let L = 0; for (let i = 1; i < n; i++) L += Math.hypot(x[i] - x[i - 1], y[i] - y[i - 1]);
+    const sin = L / Math.hypot(x[n - 1] - x[0], y[n - 1] - y[0]);
+    const f = Math.pow(sin, -2 / 3);
+    for (let i = 0; i < n; i++) R1[i] *= f;
+    return R1;
+  };
+  const buscarCorte = () => {
+    const n = x.length, h = new Map(), cs = crdist;
+    const clave = (i, j) => i * 100003 + j;
+    for (let i = 0; i < n; i++) {
+      const cx = Math.floor(x[i] / cs), cy = Math.floor(y[i] / cs);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
+        const lista = h.get(clave(cx + a, cy + b)); if (!lista) continue;
+        for (const j of lista) if (i - j > 3 * crdist / ds0 + 4 && Math.hypot(x[i] - x[j], y[i] - y[j]) < crdist) return [j, i];
+      }
+      const k = clave(cx, cy); if (!h.has(k)) h.set(k, []); h.get(k).push(i);
+    }
+    return null;
+  };
+  // estampa del cauce en la rejilla: celdas a menos de W/2 del eje
+  const estampar = () => {
+    for (let i = 0; i < x.length - 1; i++) {
+      const ax = x[i], ay = y[i], bx = x[i + 1], by = y[i + 1];
+      if (Math.max(ax, bx) < VX0 - W || Math.min(ax, bx) > VX1 + W || Math.max(ay, by) < VZ0 - W || Math.min(ay, by) > VZ1 + W) continue;
+      const r = W / 2;
+      const i0 = Math.max(0, Math.floor((Math.min(ax, bx) - r - VX0) / CELDA)), i1 = Math.min(NX - 1, Math.ceil((Math.max(ax, bx) + r - VX0) / CELDA));
+      const j0 = Math.max(0, Math.floor((Math.min(ay, by) - r - VZ0) / CELDA)), j1 = Math.min(NZ - 1, Math.ceil((Math.max(ay, by) + r - VZ0) / CELDA));
+      const ux = bx - ax, uy = by - ay, uu = ux * ux + uy * uy || 1;
+      for (let ii = i0; ii <= i1; ii++) for (let jj = j0; jj <= j1; jj++) {
+        const px = VX0 + ii * CELDA, py = VZ0 + jj * CELDA;
+        const t = Math.max(0, Math.min(1, ((px - ax) * ux + (py - ay) * uy) / uu));
+        const qx = ax + ux * t - px, qy = ay + uy * t - py;
+        if (qx * qx + qy * qy > r * r) continue;
+        const c = jj * NX + ii;
+        if (ultimo[c] === anio) continue;
+        if (primera[c] < 0) primera[c] = anio;
+        if (ultimo[c] < anio - dt * 1.5) {    // tramo nuevo: cerrar el anterior
+          if (inicio[c] >= 0) { if (!tramos.has(c)) tramos.set(c, []); tramos.get(c).push(inicio[c], ultimo[c]); }
+          inicio[c] = anio;
+        }
+        ultimo[c] = anio;
+      }
+    }
+  };
+  const ventana = () => {   // sinuosidad dentro de la ventana
+    let L = 0;
+    for (let i = 0; i < x.length - 1; i++) {
+      const mx = (x[i] + x[i + 1]) / 2;
+      if (mx >= VX0 && mx <= VX1) L += Math.hypot(x[i + 1] - x[i], y[i + 1] - y[i]);
+    }
+    return L / (VX1 - VX0);
+  };
+  const guardar = (R1) => {
+    let fr = 0, tot = NX * NZ; for (let c = 0; c < tot; c++) if (primera[c] >= 0) fr++;
+    snaps.push({ anio, x: Float32Array.from(x), y: Float32Array.from(y), r: Float32Array.from(R1), sin: ventana(), barrido: fr / tot });
+  };
+  remuestrear();
+  let C = curvatura(), R1 = migracion(C);
+  estampar(); guardar(R1);
+  while (anio < TMAX - 1e-6) {
+    C = curvatura(); R1 = migracion(C);
+    const n = x.length;
+    for (let i = PAD0; i < n - PAD1; i++) {
+      const dx = (x[i + 1] - x[i - 1]) / 2, dy = (y[i + 1] - y[i - 1]) / 2, d = Math.hypot(dx, dy) || 1;
+      const taper = Math.min(1, (i - PAD0) / 10, (n - PAD1 - i) / 10);
+      x[i] += R1[i] * dy / d * dt * taper;
+      y[i] -= R1[i] * dx / d * dt * taper;
+    }
+    remuestrear();
+    anio += dt; paso++;
+    let corte;
+    while ((corte = buscarCorte())) {
+      const [a, b] = corte;
+      const lx = x.slice(a, b + 1), ly = y.slice(a, b + 1);
+      const enVentana = lx.some((v, k) => v > VX0 && v < VX1 && ly[k] > VZ0 && ly[k] < VZ1);
+      let largo = 0; for (let k = 1; k < lx.length; k++) largo += Math.hypot(lx[k] - lx[k - 1], ly[k] - ly[k - 1]);
+      cortes.push({ anio, x: Float32Array.from(lx), y: Float32Array.from(ly), enVentana, largo });
+      x.splice(a + 1, b - a - 1); y.splice(a + 1, b - a - 1);
+      remuestrear();
+    }
+    estampar();
+    if (paso % Math.round(SNAP / dt) === 0) guardar(migracion(curvatura()));
+  }
+  for (let c = 0; c < NX * NZ; c++) if (inicio[c] >= 0) { if (!tramos.has(c)) tramos.set(c, []); tramos.get(c).push(inicio[c], ultimo[c]); }
+  return { snaps, cortes, tramos, primera, NX, NZ };
+}
+// </sim>
+const P = { W: 50, D: 3, Cf: 0.011, kl: 5, dt: 1, TMAX: 1500, SNAP: 5, ds0: 25, crdist: 100, amp: 4,
+  X0: -5000, X1: 3500, semilla: 4, VX0: -650, VX1: 1050, VZ0: -600, VZ1: 600, CELDA: 6.25 };
+const SIM = simular(P);
+const { NX, NZ } = SIM, NC = NX * NZ, W = P.W;
+const VE = 6;                                   // exageración vertical
+const XC = (P.VX0 + P.VX1) / 2;
+const wx = (x) => (x - XC) / 100, wz = (y) => y / 100, wy = (h) => h * VE / 100;
+const NIVEL = -2, BASE = -14, A_SOC = 5;   // m: nivel del agua (caudal medio) bajo la llanura; A_SOC: pendiente transversal ∝ curvatura
+const TRELLENO = 400;                           // años hasta que un lago en herradura se colmata (aprox.)
+const CORTES = SIM.cortes.filter((c) => c.enVentana);
+
+// Tramos de ocupación por celda, en formato compacto (inicio/fin de cada paso del cauce).
+const off = new Int32Array(NC + 1); { let n = 0; for (let c = 0; c < NC; c++) { off[c] = n; n += (SIM.tramos.get(c)?.length || 0) / 2; } off[NC] = n; }
+const tIni = new Float32Array(off[NC]), tFin = new Float32Array(off[NC]);
+for (const [c, l] of SIM.tramos) for (let k = 0; k < l.length / 2; k++) { tIni[off[c] + k] = l[2 * k]; tFin[off[c] + k] = l[2 * k + 1]; }
+// Celdas del lazo abandonado en cada corte: cerca del lazo y desocupadas justo en el año del corte.
+const lagoDe = new Int16Array(NC).fill(-1), lagoEta = new Float32Array(NC), lagoS = new Float32Array(NC);
+CORTES.forEach((ct, n) => {
+  const r = W / 2 + P.CELDA;
+  for (let i = 0; i < ct.x.length - 1; i++) {
+    const sPos = Math.min(i, ct.x.length - 1 - i) * P.ds0;   // metros hasta el extremo más cercano del lazo
+    const ax = ct.x[i], ay = ct.y[i], ux = ct.x[i + 1] - ax, uy = ct.y[i + 1] - ay, uu = ux * ux + uy * uy || 1;
+    const i0 = Math.max(0, Math.floor((Math.min(ax, ax + ux) - r - P.VX0) / P.CELDA)), i1 = Math.min(NX - 1, Math.ceil((Math.max(ax, ax + ux) + r - P.VX0) / P.CELDA));
+    const j0 = Math.max(0, Math.floor((Math.min(ay, ay + uy) - r - P.VZ0) / P.CELDA)), j1 = Math.min(NZ - 1, Math.ceil((Math.max(ay, ay + uy) + r - P.VZ0) / P.CELDA));
+    for (let ii = i0; ii <= i1; ii++) for (let jj = j0; jj <= j1; jj++) {
+      const px = P.VX0 + ii * P.CELDA, py = P.VZ0 + jj * P.CELDA;
+      const t0 = Math.max(0, Math.min(1, ((px - ax) * ux + (py - ay) * uy) / uu));
+      const d = Math.hypot(ax + ux * t0 - px, ay + uy * t0 - py) / (W / 2);
+      if (d > 1.15) continue;
+      const c = jj * NX + ii;
+      let fin = -1; for (let k = off[c]; k < off[c + 1]; k++) if (tFin[k] <= ct.anio && tFin[k] >= ct.anio - 3) fin = tFin[k];
+      if (fin < 0) continue;
+      if (lagoDe[c] !== n || d < lagoEta[c]) { lagoDe[c] = n; lagoEta[c] = d; lagoS[c] = sPos; }
+    }
+  }
+});
+
+const snapDe = (anio) => SIM.snaps[Math.max(0, Math.min(SIM.snaps.length - 1, Math.round(anio / P.SNAP)))];
+const dentro = (x, y, m = 0) => x > P.VX0 + m && x < P.VX1 - m && y > P.VZ0 + m && y < P.VZ1 - m;
+// <analisis>
+function analizarSnap(s) {
+  const n = s.x.length;
+  let iMax = -1, rMax = 0, iApex = -1, rApex = 0;
+  for (let i = 1; i < n - 1; i++) {
+    if (!dentro(s.x[i], s.y[i], 60)) continue;
+    const a = Math.abs(s.r[i]);
+    if (a > rMax) { rMax = a; iMax = i; }
+    const tx = Math.abs(s.x[i + 1] - s.x[i - 1]) / Math.hypot(s.x[i + 1] - s.x[i - 1], s.y[i + 1] - s.y[i - 1]);
+    if (tx > 0.9 && dentro(s.x[i], s.y[i], 160) && a > rApex) { rApex = a; iApex = i; }
+  }
+  // flechas: máximos locales de migración, separados al menos 250 m
+  const cand = [];
+  for (let i = 2; i < n - 2; i++) {
+    const a = Math.abs(s.r[i]);
+    if (a < 0.3 || !dentro(s.x[i], s.y[i], 40)) continue;
+    if (a >= Math.abs(s.r[i - 1]) && a >= Math.abs(s.r[i + 1]) && a >= Math.abs(s.r[i - 2]) && a >= Math.abs(s.r[i + 2])) cand.push(i);
+  }
+  cand.sort((a, b) => Math.abs(s.r[b]) - Math.abs(s.r[a]));
+  const flechas = [];
+  for (const i of cand) if (flechas.length < 6 && flechas.every((j) => Math.hypot(s.x[i] - s.x[j], s.y[i] - s.y[j]) > 250)) flechas.push(i);
+  return { iMax, rMax, iApex, flechas };
+}
+function analizar(anio) {
+  const s = snapDe(anio), a = analizarSnap(s);
+  const cortes = CORTES.filter((c) => c.anio <= s.anio);
+  const ultimo = cortes.at(-1) || null;
+  const antes = ultimo ? snapDe(Math.floor((ultimo.anio - 1) / P.SNAP) * P.SNAP) : null;
+  return { ...a, s, anio: s.anio, sin: s.sin, barrido: s.barrido * 100, cortes, ultimo,
+    sinAntes: antes?.sin ?? null, desdeCorte: ultimo ? s.anio - ultimo.anio : Infinity };
+}
+// </analisis>
+const cache = new Map();
+const analisis = (anio) => { const k = snapDe(anio).anio; if (!cache.has(k)) cache.set(k, analizar(k)); return cache.get(k); };
+const normalDer = (s, i) => {   // normal a la derecha del sentido de la corriente
+  const dx = s.x[i + 1] - s.x[i - 1], dy = s.y[i + 1] - s.y[i - 1], d = Math.hypot(dx, dy) || 1;
+  return [dy / d, -dx / d];
+};
+
+// ── Piezas fijas ──
+const ANCHO = (P.VX1 - P.VX0) / 100, FONDO = (P.VZ1 - P.VZ0) / 100, YB = wy(BASE);
+const ped = pedestal({ ancho: ANCHO + 0.8, fondo: FONDO + 0.8, alto: 0.35 });
+ped.position.y = YB - 0.175; suelo.position.y = YB - 0.35;
+sol.position.set(-6, 11, 8);
+sol.shadow.camera.left = sol.shadow.camera.bottom = -12;
+sol.shadow.camera.right = sol.shadow.camera.top = 12;
+sol.shadow.camera.far = 45; sol.shadow.normalBias = 0.02; sol.shadow.camera.updateProjectionMatrix();
+sol.shadow.mapSize.set(2048, 2048);
+{
+  const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
+  const pmrem = new THREE.PMREMGenerator(render);
+  escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+  escena.environmentIntensity = 0.35;
+}
+render.localClippingEnabled = true;
+const planoCorte = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);   // deja x ≤ constante
+const cortables = [];
+const cortable = (m) => { cortables.push(m); return m; };
+const azarDe = (i) => { const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
+
+// Ruido de valor determinista en la rejilla (dos escalas: micro-relieve y claros del bosque).
+function ruidoValor(escala, semilla) {
+  const r = new Float32Array(NC), h = (i, j) => azarDe(i * 157 + j * 311 + semilla * 7919);
+  for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
+    const u = i / escala, v = j / escala, i0 = Math.floor(u), j0 = Math.floor(v);
+    const fu = (u - i0) * (u - i0) * (3 - 2 * (u - i0)), fv = (v - j0) * (v - j0) * (3 - 2 * (v - j0));
+    const a = h(i0, j0) + (h(i0 + 1, j0) - h(i0, j0)) * fu, b = h(i0, j0 + 1) + (h(i0 + 1, j0 + 1) - h(i0, j0 + 1)) * fu;
+    r[j * NX + i] = a + (b - a) * fv - 0.5;
+  }
+  return r;
+}
+const ruido = ruidoValor(9, 1), claros = ruidoValor(34, 2);
+
+// Terreno: rejilla con la misma celda que la simulación.
+const posT = new Float32Array(NC * 3), colT = new Float32Array(NC * 3), hT = new Float32Array(NC), hTmp = new Float32Array(NC);
+for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) { const c = j * NX + i; posT[3 * c] = wx(P.VX0 + i * P.CELDA); posT[3 * c + 2] = wz(P.VZ0 + j * P.CELDA); }
+const idx = [];
+for (let j = 0; j < NZ - 1; j++) for (let i = 0; i < NX - 1; i++) {
+  const a = j * NX + i, b = a + NX, c = a + 1, d = b + 1;
+  idx.push(a, b, c, c, b, d);
+}
+const geoT = new THREE.BufferGeometry();
+geoT.setAttribute('position', new THREE.BufferAttribute(posT, 3));
+geoT.setAttribute('color', new THREE.BufferAttribute(colT, 3));
+geoT.setIndex(idx);
+const matT = cortable(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, envMapIntensity: 0.15 }));
+const terreno = new THREE.Mesh(geoT, matT);
+terreno.castShadow = terreno.receiveShadow = true;
+escena.add(terreno);
+
+// ── Estratos: un material para laterales, sección y talud. El color sale de la altura (m) del
+//    fragmento y de dos atributos por vértice: aTop (superficie) y aDep (base de la arena del río).
+const uEstr = { uSuelo: { value: new THREE.Color() }, uArena: { value: new THREE.Color() }, uLimo: { value: new THREE.Color() },
+  uArcilla: { value: new THREE.Color() }, uGrava: { value: new THREE.Color() }, uEsc: { value: 100 / VE } };
+alCambiarTema((n, T) => {
+  uEstr.uSuelo.value.setHex(T.humus); uEstr.uArena.value.setHex(T.deposito); uEstr.uLimo.value.setHex(T.limo);
+  uEstr.uArcilla.value.setHex(T.arcilla); uEstr.uGrava.value.setHex(T.grava);
+});
+function matEstratos() {
+  const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.15 });
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, uEstr);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aTop;\nattribute float aDep;\nvarying float vTop;\nvarying float vDep;\nvarying vec3 vMundo;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvTop = aTop; vDep = aDep; vMundo = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform vec3 uSuelo, uArena, uLimo, uArcilla, uGrava; uniform float uEsc;
+varying float vTop; varying float vDep; varying vec3 vMundo;
+vec3 estrato(float ym, float top, float dep, float hor) {
+  if (ym > top - 0.5) return uSuelo;                                   // suelo con raíces
+  if (ym > dep) {                                                       // arena del río, laminada
+    if (ym < dep + 0.6) return uGrava;                                  // grava del fondo del antiguo cauce
+    float l = fract((ym + 0.25 * sin(hor * 0.08)) / 0.6);
+    return uArena * (0.92 + 0.14 * step(0.8, l));
+  }
+  float b = ym + 0.5 * sin(hor * 0.011) + 0.2 * sin(hor * 0.05);        // capas antiguas, algo onduladas
+  float k = mod(b, 3.4);
+  return k < 1.5 ? uLimo : k < 2.1 ? uArcilla : k < 3.0 ? uLimo * 1.1 : uGrava;
+}`)
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = estrato(vMundo.y * uEsc, vTop, vDep, (vMundo.x + vMundo.z) * 100.0);');
+  };
+  m.customProgramCacheKey = () => 'estratos';
+  return m;
+}
+const DEP = -9;   // m: hasta dónde llega la arena del río bajo lo que ya recorrió (profundidad de socavación)
+
+// Faldones del bloque: dos filas (superficie y base) por muestra del borde.
+const bordes = [];
+for (let i = 0; i < NX; i++) bordes.push(i);                      // fondo (z mínima)
+for (let j = 0; j < NZ; j++) bordes.push(j * NX + NX - 1);        // derecha
+for (let i = NX - 1; i >= 0; i--) bordes.push((NZ - 1) * NX + i); // frente
+for (let j = NZ - 1; j >= 0; j--) bordes.push(j * NX);            // izquierda
+const posF = new Float32Array(bordes.length * 6), topF = new Float32Array(bordes.length * 2), depF = new Float32Array(bordes.length * 2);
+const idxF = [];
+for (let k = 0; k < bordes.length - 1; k++) { const a = 2 * k, b = a + 1, c = a + 2, d = a + 3; idxF.push(a, c, b, b, c, d); }
+const geoF = new THREE.BufferGeometry();
+geoF.setAttribute('position', new THREE.BufferAttribute(posF, 3));
+geoF.setAttribute('aTop', new THREE.BufferAttribute(topF, 1)); geoF.setAttribute('aDep', new THREE.BufferAttribute(depF, 1));
+geoF.setIndex(idxF);
+const faldon = new THREE.Mesh(geoF, cortable(matEstratos()));
+faldon.castShadow = faldon.receiveShadow = true;
+escena.add(faldon);
+
+// Talud: la orilla que el río se come, pared casi vertical con los estratos a la vista.
+const MAXT = 900;
+const geoTal = new THREE.BufferGeometry();
+const posTal = new Float32Array(MAXT * 6 * 3), topTal = new Float32Array(MAXT * 6), depTal = new Float32Array(MAXT * 6);
+geoTal.setAttribute('position', new THREE.BufferAttribute(posTal, 3));
+geoTal.setAttribute('aTop', new THREE.BufferAttribute(topTal, 1)); geoTal.setAttribute('aDep', new THREE.BufferAttribute(depTal, 1));
+const talud = new THREE.Mesh(geoTal, cortable(matEstratos()));
+talud.castShadow = talud.receiveShadow = true; talud.frustumCulled = false;
+escena.add(talud);
+
+// Agua: un plano al nivel del río con material propio. Una textura de datos por celda (dirección
+// del flujo, rapidez, profundidad) da el color por profundidad, el agua quieta de los lagos y las
+// vetas que corren río abajo, más rápidas junto a la orilla exterior.
+const flujo = new Uint8Array(NC * 4);
+const texFlujo = new THREE.DataTexture(flujo, NX, NZ, THREE.RGBAFormat);
+texFlujo.magFilter = texFlujo.minFilter = THREE.LinearFilter; texFlujo.needsUpdate = true;
+const uAgua = { uFlujo: { value: texFlujo }, uT: { value: 0 },
+  uOrigen: { value: new THREE.Vector2(wx(P.VX0 - P.CELDA / 2), wz(P.VZ0 - P.CELDA / 2)) },
+  uTam: { value: new THREE.Vector2(NX * P.CELDA / 100, NZ * P.CELDA / 100) },
+  uSomera: { value: new THREE.Color() }, uProfunda: { value: new THREE.Color() }, uLago: { value: new THREE.Color() }, uEspuma: { value: new THREE.Color() } };
+alCambiarTema((n, T) => { uAgua.uSomera.value.setHex(T.aguaSomera); uAgua.uProfunda.value.setHex(T.aguaProfunda); uAgua.uLago.value.setHex(T.aguaLago); uAgua.uEspuma.value.setHex(T.espuma); });
+const matAgua = cortable(new THREE.MeshStandardMaterial({ roughness: 0.08, metalness: 0, transparent: true, envMapIntensity: 1.1, depthWrite: false }));
+matAgua.onBeforeCompile = (sh) => {
+  Object.assign(sh.uniforms, uAgua);
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vMundo;')
+    .replace('#include <project_vertex>', '#include <project_vertex>\nvMundo = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+  sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+uniform sampler2D uFlujo; uniform float uT; uniform vec2 uOrigen, uTam; uniform vec3 uSomera, uProfunda, uLago, uEspuma;
+varying vec3 vMundo;
+float hashA(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float ruidoA(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hashA(i), hashA(i + vec2(1, 0)), f.x), mix(hashA(i + vec2(0, 1)), hashA(i + vec2(1, 1)), f.x), f.y); }`)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+vec4 fl = texture2D(uFlujo, (vMundo.xz - uOrigen) / uTam);
+vec2 dir = fl.rg * 2.0 - 1.0; float vel = fl.b; float prof = fl.a * 8.0;
+float lago = 1.0 - smoothstep(0.25, 0.6, length(dir));
+vec3 col = mix(uSomera, uProfunda, smoothstep(0.3, 4.5, prof));
+col = mix(col, uLago, lago);
+// vetas en el marco del flujo; dos fases cruzadas para que no se estiren sin fin (mapa de flujo)
+vec2 d = normalize(dir + vec2(1e-4, 0.0)); vec2 p = vMundo.xz * 100.0;
+vec2 q = vec2(dot(p, d), dot(p, vec2(-d.y, d.x)));
+float f0 = fract(uT * 0.3), f1 = fract(uT * 0.3 + 0.5), w = abs(1.0 - 2.0 * f0);
+float av = vel * 55.0;
+float n0 = ruidoA(vec2((q.x - av * f0) / 22.0, q.y / 3.5));
+float n1 = ruidoA(vec2((q.x - av * f1) / 22.0 + 17.3, q.y / 3.5 + 5.1));
+float veta = smoothstep(0.66, 0.9, mix(n0, n1, w)) * (1.0 - lago) * smoothstep(0.15, 0.6, vel);
+col = mix(col, uEspuma, veta * 0.7);
+diffuseColor.rgb = col;
+diffuseColor.a = mix(mix(0.35, 0.93, smoothstep(0.0, 2.0, prof)), 0.95, lago);`);
+};
+matAgua.customProgramCacheKey = () => 'agua-flujo';
+const agua = new THREE.Mesh(new THREE.PlaneGeometry(ANCHO, FONDO).rotateX(-Math.PI / 2), matAgua);
+agua.position.set(0, wy(NIVEL), 0); agua.receiveShadow = true;
+escena.add(agua);
+ANIMADA = true;
+SOMBRAS_ANIMADAS = false;   // lo animado no cambia ninguna sombra: solo cambia un uniforme del agua
+actualizar = (tt) => { uAgua.uT.value = tt; };
+
+// Sección del corte: columnas de estratos (superficie → base) y el agua encima del lecho.
+const posS = new Float32Array(NZ * 2 * 3), topS = new Float32Array(NZ * 2), depS = new Float32Array(NZ * 2), idxS = [];
+for (let j = 0; j < NZ - 1; j++) { const a = 2 * j, b = a + 1, c = a + 2, d = a + 3; idxS.push(a, b, c, c, b, d); }
+const geoS = new THREE.BufferGeometry();
+geoS.setAttribute('position', new THREE.BufferAttribute(posS, 3));
+geoS.setAttribute('aTop', new THREE.BufferAttribute(topS, 1)); geoS.setAttribute('aDep', new THREE.BufferAttribute(depS, 1));
+geoS.setIndex(idxS);
+const seccion = new THREE.Mesh(geoS, matEstratos());
+const geoSA = new THREE.BufferGeometry();
+geoSA.setAttribute('position', new THREE.BufferAttribute(new Float32Array((NZ - 1) * 6 * 3), 3));
+const seccionAgua = new THREE.Mesh(geoSA, mat('aguaProfunda', { roughness: 0.3, side: THREE.DoubleSide, transparent: true, opacity: 0.88 }));
+seccion.visible = seccionAgua.visible = false;
+escena.add(seccion, seccionAgua);
+
+// Cauce del año 0 (referencia), por encima de las copas para que se lea.
+const s0 = SIM.snaps[0];
+const ptsIni = []; for (let i = 0; i < s0.x.length; i++) if (s0.x[i] >= P.VX0 && s0.x[i] <= P.VX1) ptsIni.push(new THREE.Vector3(wx(s0.x[i]), 0.26, wz(s0.y[i])));
+const lineaIni = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ptsIni), 200, 0.022, 6), cortable(mat('gris', { roughness: 0.6 })));
+escena.add(lineaIni);
+
+// Campo de fútbol (105 × 68 m) como escala, en un claro que el río no toca en 1500 años.
+const CAMPO = { x: -360, y: 230 };
+const campo = (() => {
+  const c = document.createElement('canvas'); c.width = 420; c.height = 272;
+  const x = c.getContext('2d'); x.fillStyle = '#4f8f3e'; x.fillRect(0, 0, 420, 272);
+  x.strokeStyle = '#f2f2ec'; x.lineWidth = 5; x.strokeRect(8, 8, 404, 256);
+  x.beginPath(); x.moveTo(210, 8); x.lineTo(210, 264); x.stroke(); x.beginPath(); x.arc(210, 136, 36, 0, 7); x.stroke();
+  x.strokeRect(8, 72, 64, 128); x.strokeRect(348, 72, 64, 128);
+  const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.68).rotateX(-Math.PI / 2), cortable(new THREE.MeshStandardMaterial({ map: tx, roughness: 0.9, envMapIntensity: 0.1 })));
+  m.receiveShadow = true; return m;
+})();
+escena.add(campo);
+const enCampo = (x, y) => Math.abs(x - CAMPO.x) < 80 && Math.abs(y - CAMPO.y) < 60;
+
+// Vegetación: copas low-poly instanciadas sobre candidatos fijos (rejilla con jitter). Cada año se
+// decide cuáles salen y de qué tamaño según la edad del suelo, el agua y la pendiente.
+const PASO_V = 11;
+const cand = [];
+for (let y = P.VZ0 + 4; y < P.VZ1 - 4; y += PASO_V) for (let x = P.VX0 + 4; x < P.VX1 - 4; x += PASO_V) {
+  const k = cand.length;
+  const cx = x + (azarDe(k * 3 + 1) - 0.5) * PASO_V * 0.9, cy = y + (azarDe(k * 3 + 2) - 0.5) * PASO_V * 0.9;
+  cand.push({ x: cx, y: cy, c: Math.round((cy - P.VZ0) / P.CELDA) * NX + Math.round((cx - P.VX0) / P.CELDA), a: azarDe(k * 3 + 3), b: azarDe(k * 7 + 5) });
+}
+const geoCopa = new THREE.IcosahedronGeometry(0.5, 0).translate(0, 0.5, 0);
+const matCopa = cortable(new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, flatShading: true, envMapIntensity: 0.1 }));
+const copas = new THREE.InstancedMesh(geoCopa, matCopa, cand.length);
+copas.castShadow = copas.receiveShadow = true;
+copas.setColorAt(0, new THREE.Color());
+escena.add(copas);
+
+// Flechas de migración (rojo): hacia dónde retrocede cada orilla; largo ∝ m/año.
+const matFlecha = cortable(mat('rojo', { roughness: 0.5 }));
+const flechas = [];
+for (let k = 0; k < 6; k++) {
+  const g = new THREE.Group();
+  const asta = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 10).rotateZ(-Math.PI / 2).translate(0.5, 0, 0), matFlecha);
+  const punta = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.24, 14).rotateZ(-Math.PI / 2), matFlecha);
+  asta.castShadow = punta.castShadow = true;
+  g.add(asta, punta);
+  g.largo = (l) => { const a = Math.max(l - 0.2, 0.02); asta.scale.x = a; punta.position.x = a + 0.1; };
+  escena.add(g); flechas.push(g);
+}
+
+// ── Construcción del terreno para un año ──
+const _c = new THREE.Color(), _d = new THREE.Color(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3();
+const est = { corte: false, xCorte: 0, iCorte: 0, zCruce: 0, poza: null, tinte: true };
+const tinte = new Float32Array(NC), rework = new Uint8Array(NC), edadT = new Float32Array(NC), mejorEta = new Float32Array(NC), nuevo = new Uint8Array(NC);
+const DBF = 4.2;   // m: profundidad a cauce lleno medida desde la llanura
+function construir(anio) {
+  const s = snapDe(anio), T = s.anio, an = analisis(T), C = TEMAS[tema];
+  tinte.fill(0); mejorEta.fill(9); nuevo.fill(0);
+  for (let c = 0; c < NC; c++) flujo[4 * c] = flujo[4 * c + 1] = 128, flujo[4 * c + 2] = 0;
+  // 1. suelo según su historia: lo viejo es la llanura; las barras jóvenes quedan más bajas y se rellenan con los años
+  for (let c = 0; c < NC; c++) {
+    let h = ruido[c] * 0.6, ini = -1, fin = -1;
+    for (let k = off[c]; k < off[c + 1]; k++) if (tIni[k] <= T) { ini = tIni[k]; fin = tFin[k]; }
+    rework[c] = ini >= 0 ? 1 : 0;
+    if (ini >= 0 && T - ini < 40) nuevo[c] = 1;
+    const L = lagoDe[c];
+    if (ini >= 0 && fin < T - 0.5) {
+      const edad = T - fin;
+      if (L >= 0 && CORTES[L].anio <= T && Math.abs(fin - CORTES[L].anio) <= 3) {
+        const dtc = T - CORTES[L].anio;
+        // los extremos se taponan con arena en pocos años (unos 150 m); el resto se colmata despacio
+        const tapon = lagoS[c] < 150 ? Math.min(1, dtc / 4) * (1 - lagoS[c] / 150) : 0;
+        const f = Math.min(1, dtc / TRELLENO + tapon);
+        h = NIVEL + 0.3 - (0.3 + 3.2 * (1 - f)) * (1 - lagoEta[c] * lagoEta[c]) + 0.9 * f;
+        rework[c] = tapon > 0.3 && dtc < 80 ? 4 : 3;
+      } else {
+        h = -1.3 * Math.exp(-edad / 220) + 0.35 * (0.5 + 0.5 * Math.cos(edad / 30 * 6.283)) + ruido[c] * 0.2;   // crestas de barra
+        rework[c] = 2;
+      }
+    }
+    hT[c] = h;
+    edadT[c] = ini >= 0 ? Math.max(0, T - fin) : -1;
+  }
+  // 2. cauce actual: sección asimétrica (poza en la orilla exterior), flujo y orilla que cede
+  const n = s.x.length, R = W / 2, CEL = P.CELDA;
+  const curv = new Float32Array(n);
+  for (let i = 1; i < n - 1; i++) {
+    const dx = (s.x[i + 1] - s.x[i - 1]) / 2, dy = (s.y[i + 1] - s.y[i - 1]) / 2;
+    const ddx = s.x[i + 1] - 2 * s.x[i] + s.x[i - 1], ddy = s.y[i + 1] - 2 * s.y[i] + s.y[i - 1];
+    curv[i] = (dx * ddy - dy * ddx) / Math.pow(dx * dx + dy * dy, 1.5);
+  }
+  for (let i = 1; i < n - 2; i++) {
+    const ax = s.x[i], ay = s.y[i], ux = s.x[i + 1] - ax, uy = s.y[i + 1] - ay, uu = ux * ux + uy * uy || 1, ul = Math.sqrt(uu);
+    const rr = R * 2;
+    if (Math.max(ax, ax + ux) < P.VX0 - rr || Math.min(ax, ax + ux) > P.VX1 + rr || Math.max(ay, ay + uy) < P.VZ0 - rr || Math.min(ay, ay + uy) > P.VZ1 + rr) continue;
+    const i0 = Math.max(0, Math.floor((Math.min(ax, ax + ux) - rr - P.VX0) / CEL)), i1 = Math.min(NX - 1, Math.ceil((Math.max(ax, ax + ux) + rr - P.VX0) / CEL));
+    const j0 = Math.max(0, Math.floor((Math.min(ay, ay + uy) - rr - P.VZ0) / CEL)), j1 = Math.min(NZ - 1, Math.ceil((Math.max(ay, ay + uy) + rr - P.VZ0) / CEL));
+    const nxr = uy / ul, nyr = -ux / ul;
+    for (let ii = i0; ii <= i1; ii++) for (let jj = j0; jj <= j1; jj++) {
+      const px = P.VX0 + ii * CEL, py = P.VZ0 + jj * CEL;
+      const t0 = ((px - ax) * ux + (py - ay) * uy) / uu;
+      if (t0 < -0.02 || t0 > 1.02) continue;
+      const nn = (px - ax) * nxr + (py - ay) * nyr, eta = nn / R, ae = Math.abs(eta);
+      const c = jj * NX + ii;
+      const tc = Math.max(0, Math.min(1, t0));
+      const Cc = curv[i] + (curv[i + 1] - curv[i]) * tc;
+      const rr1 = s.r[i] + (s.r[i + 1] - s.r[i]) * tc;
+      const ex = Math.max(-0.9, Math.min(0.9, A_SOC * Cc * nn));   // + hacia la orilla exterior
+      if (ae <= 1.2) {
+        const f = 1 + ex;
+        const h = ae <= 1 ? -0.3 - DBF * (1 - ae * ae * ae * ae) * f : -0.3 * (1 - (ae - 1) / 0.2);
+        if (h < hT[c]) { hT[c] = h; rework[c] = 1; }
+        if (ae < mejorEta[c]) {   // el tramo más cercano manda en la dirección y la rapidez
+          mejorEta[c] = ae;
+          flujo[4 * c] = Math.round((ux / ul * 0.5 + 0.5) * 255); flujo[4 * c + 1] = Math.round((uy / ul * 0.5 + 0.5) * 255);
+          const v = Math.max(0, 1 - 0.55 * ae * ae) * (1 + 0.9 * ex);   // más rápido por fuera, más lento sobre la barra
+          flujo[4 * c + 2] = Math.round(Math.min(1, v * 0.55) * 255);
+        }
+      }
+      if (ae >= 0.9 && ae <= 2.2 && Math.sign(nn) === Math.sign(rr1) && Math.abs(rr1) > 0.25)
+        tinte[c] = Math.max(tinte[c], Math.min(1, (Math.abs(rr1) - 0.25) / 1.1) * (1 - (ae - 0.9) / 1.3));
+    }
+  }
+  // 3. un paso de suavizado de alturas: quita los dientes de la rejilla en las orillas empinadas
+  hTmp.set(hT);
+  for (let j = 1; j < NZ - 1; j++) for (let i = 1; i < NX - 1; i++) {
+    const c = j * NX + i;
+    hT[c] = (4 * hTmp[c] + hTmp[c - 1] + hTmp[c + 1] + hTmp[c - NX] + hTmp[c + NX]) / 8;
+  }
+  for (let pasada = 0; pasada < 2; pasada++) {   // en el cauce, dos pasadas más: allí la orilla cae varios metros en una celda
+    hTmp.set(hT);
+    for (let j = 1; j < NZ - 1; j++) for (let i = 1; i < NX - 1; i++) {
+      const c = j * NX + i;
+      if (rework[c] === 1) hT[c] = (4 * hTmp[c] + hTmp[c - 1] + hTmp[c + 1] + hTmp[c - NX] + hTmp[c + NX]) / 8;
+    }
+  }
+  // 4. alturas, profundidad del agua y color del suelo
+  for (let c = 0; c < NC; c++) {
+    const h = hT[c], edad = edadT[c], rw = rework[c];
+    posT[3 * c + 1] = wy(h);
+    flujo[4 * c + 3] = Math.round(Math.max(0, Math.min(1, (NIVEL - h) / 8)) * 255);
+    const claro = claros[c] < -0.2;
+    if (h < NIVEL + 0.1) _c.setHex(rw === 3 ? C.fango : C.lecho);
+    else if (rw === 1 && tinte[c] > 0) _c.setHex(C.humus);                    // la orilla que cede: tierra desnuda
+    else if (rw === 1 || rw === 4) _c.setHex(C.arena);                         // barra y orillas del cauce, tapones del lago
+    else if (rw === 3) _c.setHex(C.pantano);
+    else if (edad < 0) _c.setHex(claro ? C.pasto : C.sotobosque).offsetHSL(0, 0, ruido[c] * 0.06);
+    else {
+      if (edad < 12) _c.setHex(C.arena);
+      else if (edad < 60) _c.setHex(C.arena).lerp(_d.setHex(C.prado), (edad - 12) / 48);
+      else _c.setHex(C.prado).lerp(_d.setHex(C.sotobosque), Math.min(1, (edad - 60) / 260));
+      if (edad > 20 && edad % 100 < 7) _c.multiplyScalar(0.86);   // isócronas: la orilla hace 100, 200… años
+    }
+    if (tinte[c] > 0) {
+      _c.lerp(_d.setHex(C.humus), Math.min(1, tinte[c] * 1.6));   // suelo desnudo donde la orilla se derrumba
+      if (est.tinte) _c.lerp(_d.setHex(C.rojo), tinte[c] * 0.6);
+    }
+    colT[3 * c] = _c.r; colT[3 * c + 1] = _c.g; colT[3 * c + 2] = _c.b;
+  }
+  geoT.attributes.position.needsUpdate = true; geoT.attributes.color.needsUpdate = true;
+  geoT.computeVertexNormals(); geoT.computeBoundingSphere();
+  texFlujo.needsUpdate = true;
+  // 5. faldones con sus estratos
+  bordes.forEach((c, k) => {
+    posF.set([posT[3 * c], posT[3 * c + 1], posT[3 * c + 2], posT[3 * c], YB, posT[3 * c + 2]], 6 * k);
+    const dep = rework[c] ? Math.min(DEP, hT[c]) : hT[c];
+    topF[2 * k] = topF[2 * k + 1] = hT[c]; depF[2 * k] = depF[2 * k + 1] = dep;
+  });
+  geoF.attributes.position.needsUpdate = geoF.attributes.aTop.needsUpdate = geoF.attributes.aDep.needsUpdate = true;
+  geoF.computeVertexNormals();
+  // 6. talud: tramos de la orilla exterior que retroceden
+  let nq = 0;
+  const altoEn = (x, y) => {
+    const ii = Math.round((x - P.VX0) / CEL), jj = Math.round((y - P.VZ0) / CEL);
+    return ii < 0 || jj < 0 || ii >= NX || jj >= NZ ? null : jj * NX + ii;
+  };
+  for (let i = 2; i < n - 3 && nq < MAXT; i++) {
+    if (Math.abs(s.r[i]) < 0.3 || Math.abs(s.r[i + 1]) < 0.3 || Math.sign(s.r[i]) !== Math.sign(s.r[i + 1])) continue;
+    if (!dentro(s.x[i], s.y[i], 8) || !dentro(s.x[i + 1], s.y[i + 1], 8)) continue;
+    const pts = [i, i + 1].map((k) => {
+      const [nx, ny] = normalDer(s, k), sg = Math.sign(s.r[k]);
+      const cb = altoEn(s.x[k] + nx * sg * R * 1.45, s.y[k] + ny * sg * R * 1.45);
+      const top = cb === null ? 0 : Math.max(hT[cb], -1) + 0.05;
+      return { x: wx(s.x[k] + nx * sg * R * 0.98), z: wz(s.y[k] + ny * sg * R * 0.98), top, dep: cb !== null && rework[cb] ? Math.min(DEP, top) : top };
+    });
+    const [a, b] = pts, yb = wy(NIVEL - 0.3);
+    const v = [[a.x, wy(a.top), a.z, a], [a.x, yb, a.z, a], [b.x, wy(b.top), b.z, b], [b.x, wy(b.top), b.z, b], [a.x, yb, a.z, a], [b.x, yb, b.z, b]];
+    v.forEach(([x, y, z, p], k) => { const o = nq * 6 + k; posTal.set([x, y, z], 3 * o); topTal[o] = p.top; depTal[o] = p.dep; });
+    nq++;
+  }
+  geoTal.setDrawRange(0, nq * 6);
+  geoTal.attributes.position.needsUpdate = geoTal.attributes.aTop.needsUpdate = geoTal.attributes.aDep.needsUpdate = true;
+  geoTal.computeVertexNormals();
+  // 7. vegetación según la edad del suelo (máscaras: agua, cauce, lago, pendiente, orilla que cede, campo)
+  let nv = 0;
+  for (const k of cand) {
+    const c = k.c, h = hT[c], edad = edadT[c], rw = rework[c];
+    if (h < NIVEL + 0.5 || rw === 1 || rw === 3 || rw === 4 || tinte[c] > 0 || enCampo(k.x, k.y)) continue;
+    const i = c % NX, j = (c - i) / NX;
+    if (i > 0 && j > 0 && i < NX - 1 && j < NZ - 1 && Math.max(Math.abs(hT[c + 1] - hT[c - 1]), Math.abs(hT[c + NX] - hT[c - NX])) > 1.2) continue;
+    let dens, tam, madurez;
+    if (edad < 0) { dens = claros[c] < -0.2 ? 0.05 : 0.9; tam = 1; madurez = 1; }
+    else if (edad < 15) continue;
+    else {
+      const cresta = 0.5 + 0.5 * Math.cos(edad / 30 * 6.283);
+      madurez = Math.min(0.65, (edad - 15) / 300);   // el bosque sobre suelo del río nunca llega al tono del bosque viejo en 1500 años
+      dens = Math.min(0.9, (edad - 15) / 90) * (0.35 + 0.65 * cresta);
+      tam = 0.4 + 0.6 * madurez;
+    }
+    if (k.a > dens) continue;
+    const t = tam * (0.8 + 0.4 * k.b), d = 0.13 * t, alto = 0.16 * t;
+    _m.compose(_v.set(wx(k.x), wy(h) - 0.005, wz(k.y)), _q, _s.set(d, alto, d));
+    copas.setMatrixAt(nv, _m);
+    _c.setHex(madurez < 0.25 ? C.arbusto : C.copaJoven).lerp(_d.setHex(C.copaVieja), madurez < 0.25 ? 0 : madurez).offsetHSL(0, 0, (k.b - 0.5) * 0.08);
+    copas.setColorAt(nv, _c);
+    nv++;
+  }
+  copas.count = nv;
+  copas.instanceMatrix.needsUpdate = true; copas.instanceColor.needsUpdate = true;
+  copas.computeBoundingSphere();
+  // 8. flechas de migración
+  flechas.forEach((g, k) => {
+    const i = an.flechas[k];
+    g.visible = i !== undefined && estado.migracion;
+    if (!g.visible) return;
+    const [nx, ny] = normalDer(s, i), sg = Math.sign(s.r[i]), r = Math.abs(s.r[i]);
+    const bx = s.x[i] + nx * sg * (R + 12), by = s.y[i] + ny * sg * (R + 12);
+    g.position.set(wx(bx), 0.1, wz(by));
+    g.rotation.y = -Math.atan2(ny * sg, nx * sg);
+    g.largo(0.25 + 0.32 * r);
+  });
+  // 9. corte por el vértice de la curva que más migra
+  const ia = an.iApex >= 0 ? an.iApex : an.iMax;
+  est.iCorte = Math.max(2, Math.min(NX - 3, Math.round((s.x[ia] - P.VX0) / CEL)));
+  est.xCorte = wx(P.VX0 + est.iCorte * CEL);
+  est.zCruce = s.y[ia];
+  planoCorte.constant = est.xCorte;
+  if (est.corte) construirSeccion();
+  marcarSombras();
+}
+// el campo, sobre el suelo del claro (la llanura vieja no cambia)
+{ const c = Math.round((CAMPO.y - P.VZ0) / P.CELDA) * NX + Math.round((CAMPO.x - P.VX0) / P.CELDA); campo.position.set(wx(CAMPO.x), wy(ruido[c] * 0.6) + 0.02, wz(CAMPO.y)); }
+
+function construirSeccion() {
+  const i = est.iCorte, x = est.xCorte + 0.004, yN = wy(NIVEL);
+  const pa = geoSA.attributes.position.array;
+  let v = 0, pmin = { h: 0, j: 0 };
+  const cruce = Math.round((est.zCruce - P.VZ0) / P.CELDA);
+  for (let j = 0; j < NZ; j++) {
+    const c = j * NX + i, z = wz(P.VZ0 + j * P.CELDA), y = posT[3 * c + 1];
+    posS.set([x, y, z, x, YB, z], 6 * j);
+    const dep = rework[c] ? Math.min(DEP, hT[c]) : hT[c];
+    topS[2 * j] = topS[2 * j + 1] = hT[c]; depS[2 * j] = depS[2 * j + 1] = dep;
+    if (j < NZ - 1) {
+      const y1 = posT[3 * (c + NX) + 1], z1 = wz(P.VZ0 + (j + 1) * P.CELDA);
+      const a0 = Math.min(y, yN), a1 = Math.min(y1, yN);
+      for (const [zz, yy] of [[z, a0], [z1, a1], [z, yN], [z, yN], [z1, a1], [z1, yN]]) { pa[3 * v] = x + 0.002; pa[3 * v + 1] = yy; pa[3 * v + 2] = zz; v++; }
+    }
+    if (Math.abs(j - cruce) < 14 && hT[c] < pmin.h) pmin = { h: hT[c], j };
+  }
+  geoS.attributes.position.needsUpdate = geoS.attributes.aTop.needsUpdate = geoS.attributes.aDep.needsUpdate = true;
+  geoS.computeVertexNormals(); geoS.computeBoundingSphere();
+  geoSA.attributes.position.needsUpdate = true; geoSA.computeVertexNormals(); geoSA.computeBoundingSphere();
+  est.poza = { prof: NIVEL - pmin.h, z: wz(P.VZ0 + pmin.j * P.CELDA), y: wy(pmin.h) };
+}
+
+// ── Etiquetas ──
+const ancla = () => { const o = new THREE.Object3D(); escena.add(o); return o; };
+const aOrilla = ancla(), aBarra = ancla(), aLago = ancla(), aIni = ancla(), aCampo = ancla(), aPoza = ancla();
+const etOrilla = etiqueta(aOrilla, (e) => `Orilla exterior · ${num(analisis(e.anios).rMax, 1)} m/año`, { color: 'rojo', lado: 'der', prioridad: 1 });
+const etBarra = etiqueta(aBarra, (e) => `Barra de meandro · +${num(analisis(e.anios).rMax, 1)} m/año`, { color: 'amarillo', lado: 'izq', prioridad: 1 });
+const etLago = etiqueta(aLago, (e) => `Lago en herradura · ${analisis(e.anios).ultimo?.anio ?? ''}`, { color: 'azul', lado: 'der', prioridad: 1 });
+const etIni = etiqueta(aIni, 'Cauce del año 0', { color: 'gris', opcional: true, lado: 'izq' });
+const etCampo = etiqueta(aCampo, 'Campo de fútbol · 105 m', { color: 'gris', opcional: true, lado: 'der' });
+const etPoza = etiqueta(aPoza, () => `Poza · ${num(est.poza?.prof ?? 0, 1)} m`, { color: 'azul', lado: 'der', prioridad: 1 });
+aIni.position.set(wx(P.VX1 - 40), 0.26, wz(s0.y[s0.x.findIndex((v) => v > P.VX1 - 40)]));
+aCampo.position.set(campo.position.x + 0.55, 0.05, campo.position.z);
+
+function colocarEtiquetas(anio) {
+  const an = analisis(anio), s = an.s;
+  const i = est.corte ? (an.iApex >= 0 ? an.iApex : an.iMax) : an.iMax;
+  if (i > 0) {
+    const [nx, ny] = normalDer(s, i), sg = Math.sign(s.r[i]) || 1;
+    if (est.corte) {
+      aOrilla.position.set(est.xCorte, 0.02, wz(s.y[i] + ny * sg * (W / 2 + 6)));
+      aBarra.position.set(est.xCorte, 0.02, wz(s.y[i] - ny * sg * (W / 2 + 6)));
+    } else {
+      aOrilla.position.set(wx(s.x[i] + nx * sg * (W / 2 + 70)), 0.05, wz(s.y[i] + ny * sg * (W / 2 + 70)));
+      aBarra.position.set(wx(s.x[i] - nx * sg * (W / 2 + 40)), 0.05, wz(s.y[i] - ny * sg * (W / 2 + 40)));
+    }
+    // cada etiqueta hacia su lado de la curva en pantalla: en planta la derecha es +x; en la sección, −z
+    const fueraDer = est.corte ? sg * ny < 0 : sg * nx > 0;
+    const hacia = (a, der) => (!est.corte && Math.abs(a.position.x) > ANCHO * 0.28 ? a.position.x < 0 : der);   // cerca de un borde: hacia dentro
+    const dO = hacia(aOrilla, fueraDer), dB = hacia(aBarra, !fueraDer);
+    // si acaban del mismo lado, una encima y otra debajo del ancla para que no se pisen
+    const arriba = aOrilla.position.z < aBarra.position.z;
+    etOrilla.center.set(dO ? -0.1 : 1.1, dO === dB ? (arriba ? 1.3 : -0.3) : 0.5);
+    etBarra.center.set(dB ? -0.1 : 1.1, dO === dB ? (arriba ? -0.3 : 1.3) : 0.5);
+  }
+  etOrilla.visible = etBarra.visible = i > 0;
+  const L = an.ultimo;
+  etLago.visible = !est.corte && !!L && an.anio - L.anio < TRELLENO;
+  if (L) {   // el punto del lazo, dentro del bloque, más lejos del cuello
+    let m = -1, dm = -1;
+    for (let k = 0; k < L.x.length; k++) {
+      if (!dentro(L.x[k], L.y[k], 80)) continue;
+      const d = Math.hypot(L.x[k] - L.x[0], L.y[k] - L.y[0]);
+      if (d > dm) { dm = d; m = k; }
+    }
+    if (m >= 0) { aLago.position.set(wx(L.x[m]), 0.05, wz(L.y[m])); etLago.center.set(aLago.position.x > ANCHO * 0.2 ? 1.1 : -0.1, 0.5); }
+    else etLago.visible = false;
+  }
+  etIni.visible = !est.corte && estado.inicial;
+  etCampo.visible = !est.corte;
+  etPoza.visible = est.corte && !!est.poza;
+  if (est.poza) aPoza.position.set(est.xCorte, est.poza.y, est.poza.z);
+}
+
+// ── Estado → escena ──
+const vis = { anio: estado.anios };
+const pintar = () => { construir(vis.anio); colocarEtiquetas(vis.anio); };
+alCambiarTema(() => { if (arrancado) pintar(); });
+alCambiar((e, ant) => {
+  est.tinte = e.migracion;
+  lineaIni.visible = e.inicial;
+  const corte = e.vista === 'corte';
+  const cambioVista = corte !== est.corte;
+  est.corte = corte;
+  seccion.visible = seccionAgua.visible = corte;
+  for (const m of cortables) { m.clippingPlanes = corte ? [planoCorte] : []; m.needsUpdate = true; }
+  const d = Math.abs(e.anios - vis.anio);
+  suavizar(vis, { anio: e.anios }, Math.min(2200, 250 + d * 1.6), pintar);
+  if (corte) {
+    const an = analisis(e.anios), i = an.iApex >= 0 ? an.iApex : an.iMax;
+    const xc = wx(P.VX0 + Math.round((an.s.x[i] - P.VX0) / P.CELDA) * P.CELDA), zc = wz(an.s.y[i]);
+    VISTAS.corte = { pos: [xc + 2.3, 0.7, zc + 0.5], mira: [xc, -0.15, zc], oculta: true };   // sigue al vértice del meandro
+  }
+  if (cambioVista || corte) mirarDesde(corte ? 'corte' : 'inicial');
+});
+
+// Los mandos van DESPUÉS de crear lo que manejan.
+grupo('Momento', 'anios', [
+  { valor: 400, texto: 'Curva', tecla: '1' },
+  { valor: 1150, texto: 'Meandros', tecla: '2' },
+  { valor: 1165, texto: 'Corte', tecla: '3' },
+  { valor: 1500, texto: 'Después', tecla: '4' },
+], { principal: true });
+grupo('Ver', 'vista', [
+  { valor: 'relieve', texto: 'Relieve', tecla: 'r' },
+  { valor: 'corte', texto: 'Sección', tecla: 's' },
+], { exhibicion: true });
+deslizador('Años', 'anios', { min: 0, max: P.TMAX, paso: 5, formato: (v) => `${v} años` });
+capa('Migración', 'migracion', 'm');
+capa('Cauce del año 0', 'inicial', 'c');
+
+const s2 = (v) => num(v, 2);
+cifra('Sinuosidad', (e) => ({ valor: s2(analisis(e.anios).sin), unidad: '×', sub: 'recto = 1' }));
+cifra('Erosión', (e) => ({ valor: num(analisis(e.anios).rMax, 1), unidad: 'm/año', sub: 'orilla exterior' }));
+cifra('Rehecho', (e) => ({ valor: num(analisis(e.anios).barrido, 0), unidad: '%', sub: 'del valle' }));
+
+const km = (m) => num(m / 1000, 1);
+relato((e) => {
+  const a = analisis(e.anios), T = a.anio;
+  if (a.ultimo && a.desdeCorte < 60)
+    return `En el año <b>${a.ultimo.anio}</b> los dos brazos del meandro se tocaron: el agua tomó el atajo y el río se acortó <b>${km(a.ultimo.largo)} km</b> de golpe (sinuosidad de <b>${s2(a.sinAntes)}</b> a <b>${s2(a.sin)}</b>). El lazo abandonado queda como lago en herradura.`;
+  if (a.ultimo)
+    return `Tras <b>${T} años</b> el río ha rehecho el <b>${num(a.barrido, 0)} %</b> del valle con su propia arena. El lago de <b>${a.ultimo.anio}</b> se va rellenando y las curvas vuelven a crecer: sinuosidad <b>${s2(a.sin)}</b>.`;
+  if (a.sin < 1.3)
+    return `En el año <b>${T}</b> el cauce apenas se curva (sinuosidad <b>${s2(a.sin)}</b>), pero en cada curva el agua corre más rápida por fuera: esa orilla retrocede <b>${num(a.rMax, 1)} m/año</b> y la de dentro gana arena. La curva crece en vez de enderezarse.`;
+  return `En <b>${T} años</b> las curvas han crecido solas: el río ya mide <b>${s2(a.sin)}</b> veces el valle y ha pasado por el <b>${num(a.barrido, 0)} %</b> de la llanura. La orilla exterior sigue cediendo <b>${num(a.rMax, 1)} m/año</b> y el cuello del meandro se estrecha.`;
+});
+relatoCorto((e) => {
+  const a = analisis(e.anios), T = a.anio;
+  if (a.ultimo && a.desdeCorte < 60) return `Año ${a.ultimo.anio}: el meandro se corta y el río pierde <b>${km(a.ultimo.largo)} km</b>`;
+  if (a.ultimo) return `Año ${T}: el <b>${num(a.barrido, 0)} %</b> del valle ya es arena del río`;
+  if (a.sin < 1.3) return `Año ${T}: la orilla exterior cede <b>${num(a.rMax, 1)} m/año</b> y la curva crece`;
+  return `Año ${T}: sinuosidad <b>${s2(a.sin)}</b>, el cuello se estrecha`;
+});
+
+grafico('Sinuosidad según los años', (ctx, w, h, e, c) => {
+  const l = 34, r = 10, sup = 10, inf = 22, an = w - l - r, al = h - sup - inf, YMAX = 3.5;
+  const X = (t) => l + t / P.TMAX * an, Y = (v) => sup + al - (v - 1) / (YMAX - 1) * al;
+  ctx.font = '11px system-ui, sans-serif'; ctx.lineWidth = 1; ctx.strokeStyle = c.borde; ctx.fillStyle = c.tenue;
+  for (const t of [0, 500, 1000, 1500]) { ctx.beginPath(); ctx.moveTo(X(t), sup); ctx.lineTo(X(t), sup + al); ctx.stroke(); ctx.textAlign = 'center'; ctx.fillText(t === 1500 ? '1500 años' : String(t), X(t) - (t === 1500 ? 18 : 0), h - 7); }
+  for (const v of [1, 2, 3]) { ctx.beginPath(); ctx.moveTo(l, Y(v)); ctx.lineTo(l + an, Y(v)); ctx.stroke(); ctx.textAlign = 'right'; ctx.fillText(num(v, 0), l - 5, Y(v) + 4); }
+  for (const ct of CORTES) {
+    ctx.fillStyle = c.azul; ctx.textAlign = 'right'; ctx.fillText('corte', X(ct.anio) - 4, sup + 12);
+  }
+  ctx.strokeStyle = c.texto; ctx.lineWidth = 2; ctx.beginPath();
+  SIM.snaps.forEach((s, k) => (k ? ctx.lineTo(X(s.anio), Y(s.sin)) : ctx.moveTo(X(s.anio), Y(s.sin))));
+  ctx.stroke();
+  const a = analisis(e.anios);
+  ctx.strokeStyle = c.tenue; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+  ctx.beginPath(); ctx.moveTo(X(a.anio), sup); ctx.lineTo(X(a.anio), sup + al); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = c.rojo; ctx.beginPath(); ctx.arc(X(a.anio), Y(a.sin), 4.5, 0, 7); ctx.fill();
+});
+
+VISTAS = {
+  inicial: { pos: [0.6, 12.1, 12.1], mira: [0.3, -0.6, 0.6] },
+  mapa:    { pos: [0, 19, 0.01], mira: [0, 0, 0] },
+};
+ASPECTO_BASE = 1.75;
+ayuda('Relieve exagerado ×6 (los árboles no). Agua a caudal medio, 2 m bajo la llanura. Modelo de Howard y Knutson (1984): ancho, profundidad y caudal fijos; llanura homogénea.');
+
+
+// ───────────────────────────────────────────────────────────────────────────
+//  BUCLE
+// ───────────────────────────────────────────────────────────────────────────
+aplicarTema(temaInicial());
+if (exhibicion) { document.body.dataset.exhibicion = ''; $('btn-exhibicion').setAttribute('aria-pressed', 'true'); }
+for (const clave of vistasVisibles()) {
+  const b = el('button'); b.textContent = clave[0].toUpperCase() + clave.slice(1); b.dataset.vista = clave;
+  b.addEventListener('click', () => mirarDesde(clave));
+  $('vistas').append(b);
+}
+// Pausa: el botón (panel y mini barra) solo se muestra mientras ANIMADA sea true; sincronizarPausa() lo comprueba cada vuelta.
+const bPausa = el('button'), bPausaMini = el('button');
+const rotuloPausa = () => { bPausa.textContent = bPausaMini.textContent = pausado ? '▶ Reanudar' : '⏸ Pausa'; };
+rotuloPausa();
+bPausa.addEventListener('click', () => { pausado = !pausado; rotuloPausa(); pedirFotograma(); });
+bPausaMini.addEventListener('click', () => bPausa.click());
+$('vistas').before(bPausa);
+$('mini-acciones').prepend(bPausaMini);
+atajos.push({ tecla: ' ', texto: 'Pausa', activo: () => ANIMADA, fn: () => { if (ANIMADA) bPausa.click(); } });
+let animadaVista = null;
+function sincronizarPausa() {
+  if (ANIMADA === animadaVista) return;
+  if (animadaVista === false && ANIMADA && pausado) { pausado = false; rotuloPausa(); }
+  animadaVista = ANIMADA;
+  bPausa.hidden = bPausaMini.hidden = !ANIMADA;
+  pedirFotograma();
+}
+actualizarFormato();
+refrescar();
+sincronizarPausa();   // tras refrescar(): la escena suele fijar ANIMADA en alCambiar, y el estado inicial no cuenta como cambio
+// Prioridad: ?vista=, la que la escena eligió al arrancar (mirarDesde en alCambiar), la inicial.
+mirarDesde(VISTAS[url.get('vista')] ? url.get('vista') : VISTAS[vistaActual] ? vistaActual : vistaBase());
+arrancado = true;
+
+const reloj = new THREE.Clock();
+let fotogramas = 0;
+render.setAnimationLoop(() => {
+  const dt = reloj.getDelta();
+  sincronizarPausa();
+  let dibujar = pedido;
+  if (ANIMADA && (!pausado || pedido)) {
+    if (!pausado) t += dt;
+    actualizar(t, estado);
+    seguirTexto();
+    dibujar = true;
+    if (SOMBRAS_ANIMADAS) sombrasSucias = true;
+  }
+  if (avanzarTransiciones()) sombrasSucias = dibujar = true;
+  if (orbita.update()) dibujar = true;
+  if (modoCaptura && fotogramas < 3) dibujar = true;
+  if (!dibujar) return;
+  pedido = false;
+  if (sombrasSucias) { render.shadowMap.needsUpdate = true; sombrasSucias = false; }
+  render.render(escena, camara);
+  rotulos.render(escena, camara);
+  resolverEtiquetas();
+  fotogramas++;
+
+  if (fotogramas === 1) {
+    arranqueMs = Math.round(performance.now() - t0Modulo);
+    diagOK = `OK three=${THREE.REVISION} objetos=${escena.children.length} ` +
+      `triangulos=${render.info.render.triangles} llamadas=${render.info.render.calls} ` +
+      `formato=${document.body.dataset.formato} tema=${document.body.dataset.tema} arranque=${arranqueMs}`;
+    medirTexto();
+    document.body.dataset.listo = '1';
+  }
+  // Cierre del modo captura, no simplificar: con el bucle vivo el headless no da la página por terminada, y cortarlo a secas deja
+  // un PNG negro con las etiquetas flotando (el compositor fotografía antes de llevar a pantalla lo que WebGL dibujó).
+  // Congelar el lienzo en un <img> quita la carrera: una imagen normal siempre se pinta.
+  if (modoCaptura && fotogramas === 3) {
+    render.setAnimationLoop(null);
+    const foto = new Image();
+    foto.src = render.domElement.toDataURL('image/png');   // exige preserveDrawingBuffer
+    foto.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+    render.domElement.replaceWith(foto);
+  }
+});
+</script>
+</body>
+</html>

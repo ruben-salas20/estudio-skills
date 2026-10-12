@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TÍTULO DEL LABORATORIO</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<!-- LABORATORIO de la skill escenas-3d. Se sustituye solo CONTENIDO, el antetítulo, el título y el gancho. El aria-label nombra el lienzo. -->
+<div class="escena3d" id="escena" data-modo="laboratorio" aria-label="QUÉ SE VE, EN UNA FRASE"></div>
+<script>
+  // Si el módulo no llega a arrancar (sin conexión al CDN, error de sintaxis), lo dice en vez de quedar en blanco.
+  setTimeout(() => { if (!document.body.dataset.listo && !document.getElementById("diag")) document.querySelector(".escena3d").insertAdjacentHTML("beforeend", '<p class="fallo3d" style="padding:1rem">La escena 3D no arrancó. Comprueba la conexión o abre la consola del navegador.</p>'); }, 10000);
+</script>
+<script type="module">
+// ── NÚCLEO (inicio): lo escribe scripts/armar.mjs desde assets/nucleo.js; no se edita aquí ──
+// ── NÚCLEO (fin) ──
+
+// PLANTILLA DE LABORATORIO de la skill escenas-3d: una página .html que se abre sola o se incrusta en una nota.
+// Lo que va entre «CONTENIDO» es el modelo de la ficha; el resto (andamiaje) no se toca.
+
+const CSS = `
+.lab-cont .lab-tarjeta { background: color-mix(in srgb, var(--bg) 90%, transparent); border: 1px solid var(--linea); border-radius: 10px; }
+.lab-cont .lab-raiz { position: absolute; inset: 0; z-index: 2; pointer-events: none; color: var(--fg); font-size: .9rem; line-height: 1.45; }
+.lab-cont .lab-raiz[data-formato="compacto"] { display: none; }
+.lab-cont [hidden] { display: none !important; }
+.lab-cont .lab-izq { position: absolute; top: 14px; left: 14px; bottom: 14px; width: 330px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.lab-cont .lab-izq > * { pointer-events: auto; }
+.lab-cont .lab-cabecera { padding: 12px 14px; }
+.lab-cont .lab-cabecera h1 { margin: 0; font-size: 1.25rem; line-height: 1.2; font-weight: 700; }
+.lab-cont .lab-antetitulo { margin: 0 0 2px; font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.lab-cont .lab-gancho { margin: 6px 0 0; color: var(--muted); }
+.lab-cont .lab-cifras { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.lab-cont .lab-cifra { grid-column: span 2; padding: 8px 10px; min-width: 0; }
+.lab-cont .lab-cifras[data-n="1"] .lab-cifra { grid-column: span 6; }
+.lab-cont .lab-cifras[data-n="2"] .lab-cifra, .lab-cont .lab-cifras[data-n="4"] .lab-cifra { grid-column: span 3; }
+.lab-cont .lab-cifras[data-n="5"] .lab-cifra:nth-child(n+4) { grid-column: span 3; }
+.lab-cont .lab-rotulo { display: block; font-size: .7rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lab-cont .lab-valor { display: block; margin-top: 2px; font-size: 1.35rem; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.lab-cont .lab-valor small { font-size: .78rem; font-weight: 500; color: var(--muted); margin-left: 3px; }
+.lab-cont .lab-sub { display: block; font-size: .72rem; color: var(--muted); line-height: 1.3; }
+.lab-cont .lab-relato { padding: 12px 14px; }
+.lab-cont .lab-relato b { font-weight: 650; font-variant-numeric: tabular-nums; }
+.lab-cont .lab-grafico { margin-top: auto; padding: 10px 12px 8px; }
+.lab-cont .lab-grafico canvas { display: block; width: 100%; height: 160px; margin-top: 4px; }
+.lab-cont .lab-mandos { position: absolute; top: 48px; right: 14px; width: 262px; max-height: calc(100% - 62px); overflow-y: auto; padding: 10px 12px 12px; pointer-events: auto; }
+.lab-cont .lab-cabpanel { display: flex; justify-content: flex-end; }
+.lab-cont .lab-grupo { margin: 10px 0; }
+.lab-cont .lab-grupo .lab-rotulo { margin-bottom: 5px; }
+.lab-cont .lab-seg { display: flex; gap: 4px; }
+.lab-cont .lab-seg .lab-boton { flex: 1; }
+.lab-cont .lab-seg.fil { display: grid; grid-template-columns: repeat(var(--c), 1fr); }
+.lab-cont .lab-boton { padding: 5px 9px; border-radius: 7px; border: 1px solid var(--linea); background: var(--bg); color: var(--fg); font: inherit; font-size: .82rem; line-height: 1.3; white-space: nowrap; cursor: pointer; }
+.lab-cont .lab-boton:hover { background: var(--mesa); }
+.lab-cont .lab-boton[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+.lab-cont .lab-boton:focus-visible, .lab-cont .lab-control input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lab-cont .lab-icono { width: 2rem; height: 2rem; padding: 0; font-size: .95rem; }
+.lab-cont .lab-control { margin: 12px 0; }
+.lab-cont .lab-control label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); }
+.lab-cont .lab-control label b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.lab-cont .lab-control input[type="range"] { width: 100%; margin: 6px 0 0; accent-color: var(--accent); }
+.lab-cont .lab-fila { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.lab-cont .lab-ayuda { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; padding: 14px 18px; min-width: 260px; max-width: 90%; font-size: .85rem; pointer-events: auto; }
+.lab-cont .lab-ayuda ul { margin: 0; padding: 0; list-style: none; }
+.lab-cont .lab-ayuda li { display: flex; gap: 10px; margin: 3px 0; }
+.lab-cont .lab-ayuda kbd { flex: none; min-width: 22px; text-align: center; padding: 0 5px; border: 1px solid var(--linea); border-radius: 5px; font: .78rem var(--mono); }
+.lab-cont .lab-nota { margin: 8px 0 0; color: var(--muted); }
+.lab-cont .lab-etiqueta { color: var(--fg); border-left: 3px solid var(--c); padding: 2px 8px; border-radius: 6px; font-size: .8rem; font-weight: 500; font-variant-numeric: tabular-nums; transition: opacity .18s; }
+.lab-cont .lab-etiqueta.tapada { opacity: 0; }
+.lab-cont[data-formato="compacto"] .lab-etiqueta { font-size: .7rem; padding: 1px 5px; border-left-width: 2px; }
+.lab-cont[data-formato="compacto"] .lab-etiqueta.opc { display: none; }
+.lab-cont[data-formato="compacto"] .mandos3d .lab-rotulo { display: none; }
+.lab-cont[data-formato="compacto"] .mandos3d .lab-grupo { margin: 0; }
+`;
+
+function montar(k) {
+  const { THREE, escena, camara, render, orbita, hemi, sol } = k;
+  const url = new URLSearchParams(location.search);
+  const tFijo = url.has("t") ? parseFloat(url.get("t")) : null;   // ?t= congela el fotograma (capturas)
+
+  // ── ANDAMIAJE (inicio): igual en la plantilla de la skill ──────────────────────────
+  const el = (etiqueta, clase, html) => {
+    const e = document.createElement(etiqueta);
+    if (clase) e.className = clase;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  };
+  const num = (v, d = 1) => new Intl.NumberFormat("es-CO", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+  const hex = (n) => "#" + n.toString(16).padStart(6, "0");
+
+  const cont = k.contenedor;
+  cont.classList.add("lab-cont");
+  const lienzo = render.domElement.parentElement;
+  const estilo = el("style");
+  estilo.textContent = CSS;
+  cont.append(estilo);
+
+  // Estructura: a la izquierda cabecera, cifras, relato y gráfico; a la derecha los mandos; el montaje
+  // principal sale en la fila de abajo cuando el formato es compacto (lo mueve aplicarFormato()).
+  const superposicion = el("div", "lab-raiz");
+  superposicion.dataset.formato = "compacto";
+  const izqEl = el("div", "lab-izq");
+  const cabeceraEl = el("header", "lab-tarjeta lab-cabecera");
+  const cifrasEl = el("div", "lab-cifras");
+  const relatoEl = el("div", "lab-tarjeta lab-relato");
+  const graficoEl = el("div", "lab-tarjeta lab-grafico");
+  relatoEl.hidden = true; graficoEl.hidden = true;
+  izqEl.append(cabeceraEl, cifrasEl, relatoEl, graficoEl);
+  const panel = el("div", "lab-tarjeta lab-mandos");
+  const cabPanel = el("div", "lab-cabpanel");
+  const botonAyuda = el("button", "lab-boton lab-icono", "?");
+  botonAyuda.type = "button";
+  botonAyuda.title = "Ayuda (?)";
+  botonAyuda.setAttribute("aria-label", "Ayuda");
+  cabPanel.append(botonAyuda);
+  const controles = el("div", "lab-controles");
+  const fila = el("div", "lab-fila");   // vistas de cámara
+  const botonPausa = el("button", "lab-boton");
+  botonPausa.type = "button";
+  botonPausa.hidden = true;
+  const chips = el("div", "lab-fila");
+  controles.append(chips);
+  panel.append(cabPanel, controles, botonPausa, fila);
+  const ayudaEl = el("div", "lab-tarjeta lab-ayuda");
+  ayudaEl.hidden = true;
+  superposicion.append(izqEl, panel, ayudaEl);
+  cont.append(superposicion);
+  const mandosFila = k.mandos;
+
+  // ── Temas ──
+  // Colores semánticos: la escena pide 'azul' o 'base', nunca un hex. Los de la escena, con ampliarTemas().
+  const TEMAS = {
+    oscuro: {
+      base: 0x3b414b,
+      azul: 0x5aa2ff, naranja: 0xff9f4a, verde: 0x45c48f, rojo: 0xff6b6b,
+      amarillo: 0xf2c14e, violeta: 0xa98bff, gris: 0x6f7987, metal: 0xaab3c0,
+      hemiCielo: 0xffffff, hemiSuelo: 0x5b6270, hemi: 0.75, sol: 1.7,
+    },
+    claro: {
+      base: 0xbfc5ce,
+      azul: 0x2a6bd1, naranja: 0xd96d16, verde: 0x1b8f5d, rojo: 0xd13a3a,
+      amarillo: 0xc99609, violeta: 0x7650d0, gris: 0x9099a6, metal: 0x8d97a4,
+      hemiCielo: 0xffffff, hemiSuelo: 0x9aa1ad, hemi: 0.85, sol: 1.5,
+    },
+  };
+  const SEMANTICOS = ["azul", "naranja", "verde", "rojo", "amarillo", "violeta", "gris"];
+  const clavesPropias = [];
+  let tema = "oscuro";
+  // Las mismas claves en los dos temas: un color que solo existe en uno sale undefined al cambiar y falla en silencio.
+  function ampliarTemas({ claro, oscuro } = {}) {
+    if (!claro || !oscuro) throw new Error("ampliarTemas() necesita { claro: {…}, oscuro: {…} }");
+    const dif = (a, b, en, falta) => Object.keys(a).filter((c) => !(c in b)).map((c) => `"${c}" está en ${en} y falta en ${falta}`);
+    const problemas = [...dif(claro, oscuro, "claro", "oscuro"), ...dif(oscuro, claro, "oscuro", "claro"),
+      ...Object.keys(claro).filter((c) => c in TEMAS.claro).map((c) => `"${c}" ya existe en TEMAS y no se puede pisar`)];
+    if (problemas.length) throw new Error("ampliarTemas(): " + problemas.join("; "));
+    Object.assign(TEMAS.claro, claro); Object.assign(TEMAS.oscuro, oscuro);
+    clavesPropias.push(...Object.keys(claro));
+  }
+  const colorDe = (nombre) => hex(TEMAS[tema][nombre]);
+  const materiales = [];
+  const temaFns = [];
+  // Material con color semántico: al cambiar de tema se recolorea solo.
+  function mat(clave, opciones = {}) {
+    const m = new THREE.MeshStandardMaterial({
+      roughness: 0.8, metalness: 0.05,
+      ...(clave === "metal" ? { roughness: 0.5, metalness: 0.3 } : {}),   // sin mapa de entorno, más metalness sale negro
+      ...opciones, color: TEMAS[tema][clave],
+    });
+    materiales.push([m, clave]);
+    return m;
+  }
+  // fn(nombre, colores): para lo que mat() no recolorea (colores por instancia). Se llama al registrarse y en cada cambio.
+  function alCambiarTema(fn) { temaFns.push(fn); fn(tema, TEMAS[tema]); }
+  function colorUI() {
+    const c = { texto: k.colores.fg, tenue: k.colores.muted, fondo: k.colores.bg, borde: k.colores.muted };
+    for (const n of [...SEMANTICOS, ...clavesPropias]) c[n] = hex(TEMAS[tema][n]);
+    return c;
+  }
+
+  // ── Estado: fuente única de verdad ──
+  // Se guarda en localStorage con su clave de área (CLAVE, en CONTENIDO) y se restaura al cargar; ?e=clave:valor lo pisa.
+  let estado = null, anterior = null;
+  const alCambiarFns = [];
+  const requerirEstado = (quien) => { if (!estado) throw new Error(`${quien}() se llamó antes que definirEstado()`); };
+  function definirEstado(inicial) {
+    let guardado = {};
+    try { guardado = JSON.parse(localStorage.getItem(CLAVE) || "{}"); } catch {}
+    estado = { ...inicial };
+    for (const c of Object.keys(inicial)) if (c in guardado && typeof guardado[c] === typeof inicial[c]) estado[c] = guardado[c];
+    for (const par of (url.get("e") || "").split(",").filter(Boolean)) {
+      const i = par.indexOf(":"); if (i < 0) continue;
+      const c = par.slice(0, i).trim(), v = par.slice(i + 1).trim();
+      estado[c] = v === "true" ? true : v === "false" ? false : (v !== "" && !isNaN(+v)) ? +v : v;
+    }
+    anterior = null;
+  }
+  function guardar() { try { localStorage.setItem(CLAVE, JSON.stringify(estado)); } catch {} }
+  function cambiar(parcial) {
+    requerirEstado("cambiar");
+    anterior = estado; estado = { ...estado, ...parcial };
+    guardar();
+    refrescar();
+  }
+  function alCambiar(fn) { alCambiarFns.push(fn); }
+
+  // ── Mandos ──
+  const grupos = [], deslizadores = [], capas = [], atajos = [], notasAyuda = [];
+  let elPrincipal = null;
+  const efectoDeOpcion = (clave, o) => {
+    const r = { ...(o.valor !== undefined ? { [clave]: o.valor } : {}), ...(o.fija || {}) };
+    if (!Object.keys(r).length) throw new Error(`grupo("${clave}"): la opción "${o.texto}" necesita valor o fija`);
+    return r;
+  };
+  const opcionActiva = (r) => Object.entries(r).every(([c, v]) => String(estado[c]) === String(v));
+  // Botones segmentados. Opción = { texto, tecla?, valor?, fija? }. { principal: true } lo pone en la fila de abajo
+  // en compacto (y arriba del panel en completo).
+  function grupo(rotulo, clave, opciones, { principal = false } = {}) {
+    requerirEstado("grupo");
+    const caja = el("div", "lab-grupo"), seg = el("div", "lab-seg");
+    seg.setAttribute("role", "group"); seg.setAttribute("aria-label", rotulo);
+    caja.append(el("span", "lab-rotulo", rotulo), seg);
+    const efectos = opciones.map((o) => efectoDeOpcion(clave, o));
+    const botones = opciones.map((o, i) => {
+      const b = el("button", "lab-boton"); b.type = "button"; b.textContent = o.texto;
+      b.addEventListener("click", () => cambiar(efectos[i]));
+      seg.append(b);
+      if (o.tecla) atajos.push({ tecla: o.tecla, texto: `${rotulo}: ${o.texto}`, fn: () => cambiar(efectos[i]) });
+      return b;
+    });
+    grupos.push({ efectos, botones });
+    if (principal) { elPrincipal = caja; colocarPrincipal(); } else controles.append(caja);
+    ajustarGrupos();
+  }
+  // Reparte cada grupo: una fila; si no cabe, 2, 3… filas parejas, la primera disposición sin desbordes.
+  function ajustarGrupos() {
+    const mcd = (a, b) => (b ? mcd(b, a % b) : a);
+    for (const seg of k.contenedor.querySelectorAll(".lab-seg")) {
+      const bs = [...seg.children], n = bs.length;
+      if (n < 2 || !seg.getClientRects().length) continue;
+      const cabe = () => seg.scrollWidth <= seg.clientWidth + 1 && bs.every((b) => b.scrollWidth <= b.clientWidth + 1);
+      const poner = (kf) => {
+        seg.classList.toggle("fil", kf > 0);
+        const m = kf ? n - kf * (Math.ceil(n / kf) - 1) : 0;
+        const cols = kf ? kf * m / mcd(kf, m) : 1;
+        seg.style.setProperty("--c", cols);
+        bs.forEach((b, i) => { const span = kf ? cols / (i >= n - m ? m : kf) : 1; b.style.gridColumn = span > 1 ? `span ${span}` : ""; });
+      };
+      poner(0);
+      for (let filas = 2, previo = n; filas <= n && !cabe(); filas++) {
+        const kf = Math.ceil(n / filas);
+        if (kf !== previo) poner(previo = kf);
+      }
+    }
+  }
+  function colocarPrincipal() {
+    if (!elPrincipal) return;
+    if (formato === "compacto") mandosFila.prepend(elPrincipal);
+    else controles.prepend(elPrincipal);
+  }
+  function deslizador(rotulo, clave, { min = 0, max = 1, paso = 0.01, formato: fmt = (v) => num(v, 2), tambien = {} } = {}) {
+    requerirEstado("deslizador");
+    const d = el("div", "lab-control", `<label><span></span><b></b></label><input type="range" min="${min}" max="${max}" step="${paso}">`);
+    d.querySelector("span").textContent = rotulo;
+    const inp = d.querySelector("input");
+    inp.setAttribute("aria-label", rotulo);
+    inp.addEventListener("input", () => cambiar({ ...tambien, [clave]: +inp.value }));
+    deslizadores.push({ clave, fmt, inp, eco: d.querySelector("b") });
+    controles.append(d);
+  }
+  function capa(rotulo, clave, tecla) {
+    requerirEstado("capa");
+    const b = el("button", "lab-boton"); b.type = "button"; b.textContent = rotulo;
+    b.addEventListener("click", () => cambiar({ [clave]: !estado[clave] }));
+    chips.append(b);
+    capas.push({ clave, b });
+    if (tecla) atajos.push({ tecla, texto: `Capa: ${rotulo}`, fn: () => cambiar({ [clave]: !estado[clave] }) });
+  }
+  function pintarMandos() {
+    for (const g of grupos) g.efectos.forEach((r, i) => {
+      const on = opcionActiva(r);
+      g.botones[i].setAttribute("aria-pressed", String(on));
+    });
+    for (const s of deslizadores) { s.inp.value = estado[s.clave]; s.eco.textContent = s.fmt(estado[s.clave]); }
+    for (const c of capas) c.b.setAttribute("aria-pressed", String(!!estado[c.clave]));
+  }
+  function pintarPausa() { botonPausa.textContent = pausado ? "▶ Reanudar" : "⏸ Pausa"; }
+
+  // ── Cifras, relato, etiquetas y gráfico ──
+  const cifras = [];
+  function cabecera({ antetitulo, titulo, gancho }) {
+    cabeceraEl.innerHTML = `<p class="lab-antetitulo"></p><h1></h1><p class="lab-gancho"></p>`;
+    cabeceraEl.querySelector(".lab-antetitulo").textContent = antetitulo;
+    cabeceraEl.querySelector("h1").textContent = titulo;
+    cabeceraEl.querySelector(".lab-gancho").textContent = gancho;
+  }
+  function cifra(rotulo, fn) {
+    const c = el("div", "lab-tarjeta lab-cifra", `<span class="lab-rotulo"></span><span class="lab-valor num"></span><span class="lab-sub"></span>`);
+    c.querySelector(".lab-rotulo").textContent = rotulo;
+    cifrasEl.append(c);
+    cifrasEl.dataset.n = cifras.length + 1;
+    cifras.push({ fn, valor: c.querySelector(".lab-valor"), sub: c.querySelector(".lab-sub") });
+  }
+  let fnRelato = null;
+  function relato(fn) { fnRelato = fn; relatoEl.hidden = false; }
+
+  const etiquetas = [];
+  // Etiqueta anclada a un objeto 3D. `texto`: string o función del estado. `color`: nombre semántico del tema.
+  // `lado`: 'izq' | 'der' a un costado del ancla. `opcional`: fuera en compacto. `prioridad`: la mayor gana si se pisan.
+  function etiqueta(objeto, texto, { color = "azul", alto = 0, lado = "", opcional = false, prioridad = 0 } = {}) {
+    const o = k.etiqueta(objeto, "", { alto });
+    const div = o.element;
+    div.className = "etiqueta3d lab-etiqueta" + (opcional ? " opc" : "");
+    div.style.setProperty("--c", colorDe(color));
+    if (lado) o.center.set(lado === "izq" ? 1.1 : -0.1, 0.5);
+    etiquetas.push({ div, texto, color, prioridad, tapada: false, t0: -Infinity });
+    return o;
+  }
+  // Tras dibujar: se tapa la etiqueta que toca un panel o se sale del lienzo, y la de menor prioridad si dos se solapan.
+  // «Tapar» es opacity, no display: sigue medida y puede volver. Histéresis: para taparse basta tocar; para volver,
+  // quedar libre 8–10 px y 300 ms de permanencia mínima, para que no parpadee al girar.
+  function resolverEtiquetas() {
+    if (!etiquetas.length) return;
+    const L = lienzo.getBoundingClientRect();
+    const paneles = [...cont.querySelectorAll(".lab-izq > *, .lab-mandos, .lab-ayuda:not([hidden]), .pantalla3d")]
+      .map((p) => p.getBoundingClientRect()).filter((r) => r.width && r.height);
+    const lista = [], ahora = performance.now();
+    let pendiente = false;
+    for (const e of etiquetas) {
+      const r = e.div.getBoundingClientRect();
+      if (r.width) lista.push({ e, r });
+      else if (e.tapada) { e.tapada = false; e.div.classList.remove("tapada"); }
+    }
+    lista.sort((a, b) => b.e.prioridad - a.e.prioridad || a.e.tapada - b.e.tapada);
+    const choca = (r, o, m) => r.left < o.right + m && r.right > o.left - m && r.top < o.bottom + m && r.bottom > o.top - m;
+    const puestas = [];
+    for (const { e, r } of lista) {
+      const mp = e.tapada ? 8 : 0, ml = e.tapada ? 10 : 2;
+      const cabe = r.left >= L.left + mp && r.top >= L.top + mp && r.right <= L.right - mp && r.bottom <= L.bottom - mp &&
+        !paneles.some((p) => choca(r, p, mp)) && !puestas.some((o) => choca(r, o, ml));
+      if (cabe) puestas.push(r);
+      if (e.tapada !== cabe) continue;
+      if (ahora - e.t0 < 300) { pendiente = true; continue; }
+      e.tapada = !cabe; e.t0 = ahora; e.div.classList.toggle("tapada", e.tapada);
+    }
+    if (pendiente) setTimeout(() => k.pedir(), 320);
+  }
+
+  const graficos = [];
+  // fn(ctx, w, h, estado, colores) dibuja en un canvas 2D con píxeles CSS.
+  function grafico(rotulo, fn) {
+    graficoEl.hidden = false;
+    graficoEl.append(el("div", "lab-rotulo", rotulo));
+    const canvas = el("canvas");
+    canvas.setAttribute("role", "img"); canvas.setAttribute("aria-label", rotulo);
+    graficoEl.append(canvas);
+    graficos.push({ fn, canvas });
+  }
+  function pintarGrafico() {
+    if (!estado || superposicion.dataset.formato !== "completo") return;
+    const dpr = Math.min(devicePixelRatio, 2), colores = colorUI();
+    for (const g of graficos) {
+      const r = g.canvas.getBoundingClientRect();
+      if (!r.width) continue;
+      const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+      if (g.canvas.width !== w || g.canvas.height !== h) { g.canvas.width = w; g.canvas.height = h; }
+      const ctx = g.canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, r.width, r.height);
+      g.fn(ctx, r.width, r.height, estado, colores);
+    }
+  }
+  // Solo toca el DOM si el texto cambió.
+  function escribirSi(nodo, campo, valor) {
+    const c = "_ult_" + campo;
+    if (nodo[c] !== valor) { nodo[c] = valor; nodo[campo] = valor; }
+  }
+  function pintarTextos() {
+    if (fnRelato) escribirSi(relatoEl, "innerHTML", fnRelato(estado));
+    for (const c of cifras) {
+      const r = c.fn(estado);
+      escribirSi(c.valor, "innerHTML", `${r.valor}${r.unidad ? `<small>${r.unidad}</small>` : ""}`);
+      escribirSi(c.sub, "textContent", r.sub || "");
+    }
+    for (const e of etiquetas) escribirSi(e.div, "textContent", typeof e.texto === "function" ? e.texto(estado) : e.texto);
+  }
+
+  // ── Ayuda ──
+  function ayuda(html) { notasAyuda.push(html); }
+  function pintarAyuda() {
+    const filas = [["?", "Esta ayuda"], ...atajos.filter((a) => !a.activo || a.activo()).map((a) => [a.tecla === " " ? "Espacio" : a.tecla, a.texto])];
+    ayudaEl.innerHTML = `<p class="lab-rotulo">Atajos</p><ul>${filas.map(([tecla, texto]) => `<li><kbd>${tecla}</kbd><span>${texto}</span></li>`).join("")}</ul>` +
+      `<p class="lab-nota">arrastrar: girar · botón derecho: desplazar · rueda: acercar</p>` +
+      notasAyuda.map((h) => `<p class="lab-nota">${h}</p>`).join("");
+  }
+  function alternarAyuda() { if (ayudaEl.hidden) pintarAyuda(); ayudaEl.hidden = !ayudaEl.hidden; k.pedir(); }
+  botonAyuda.addEventListener("click", alternarAyuda);
+
+  // ── Transiciones ──
+  // Interpola propiedades numéricas; en el primer pintado y sin movimiento (?t=) se aplica de golpe.
+  const transiciones = [];
+  let arrancado = false;
+  function suavizar(objeto, destinos, ms = 400, alActualizar) {
+    if (!arrancado || tFijo !== null || ms <= 0) {
+      Object.assign(objeto, destinos); alActualizar?.(); marcarSombras(); return;
+    }
+    const previa = transiciones.findIndex((x) => x.objeto === objeto);
+    if (previa >= 0) transiciones.splice(previa, 1);
+    const desde = {};
+    for (const c in destinos) desde[c] = objeto[c];
+    transiciones.push({ objeto, desde, destinos, ms, alActualizar, t0: performance.now() });
+    k.pedir();
+  }
+  function avanzarTransiciones() {
+    if (!transiciones.length) return false;
+    const ahora = performance.now();
+    for (let i = transiciones.length - 1; i >= 0; i--) {
+      const x = transiciones[i];
+      const p = Math.min(1, (ahora - x.t0) / x.ms);
+      const e = p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2;
+      for (const c in x.destinos) x.objeto[c] = x.desde[c] + (x.destinos[c] - x.desde[c]) * e;
+      x.alActualizar?.();
+      if (p >= 1) transiciones.splice(i, 1);
+    }
+    return true;
+  }
+
+  // ── Sombras ──
+  // El mapa de sombras no se recalcula solo: solo cuando algo que proyecta sombra cambia (marcarSombras).
+  function marcarSombras() { k.render.shadowMap.needsUpdate = true; k.pedir(); }
+
+  // ── Pedestal ──
+  function pedestal({ ancho = 8, fondo = 5, alto = 0.5 } = {}) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(ancho, alto, fondo), mat("base"));
+    m.position.y = -alto / 2;
+    m.castShadow = m.receiveShadow = true;
+    escena.add(m);
+    k.sombraSuelo(-alto, 60);
+    return m;
+  }
+
+  // ── Formato, encuadre y vistas ──
+  // Compacto: la escena y la fila de montaje. Completo (pantalla completa): paneles a los lados, y lo demás ajustado a la zona libre.
+  let formato = "compacto";
+  let VISTAS = {};
+  let ASPECTO_BASE = 1.45;   // relación ancho/alto de la zona libre para la que se eligen las vistas
+  const aspectoBase = () => (typeof ASPECTO_BASE === "number" ? ASPECTO_BASE : (ASPECTO_BASE[formato] ?? 1.45));
+  const vistasVisibles = () => Object.keys(VISTAS).filter((c) => !VISTAS[c].oculta);
+  const vistaBase = () => (VISTAS.inicial ? "inicial" : vistasVisibles()[0]);
+  let vistaActual = "inicial";
+  let kVista = 1, zonaClave = "";
+  // Zona libre en píxeles del lienzo.
+  function zonaLibre() {
+    const L = lienzo.getBoundingClientRect(), W = L.width, H = L.height;
+    if (formato === "completo") {
+      const izq = izqEl.getBoundingClientRect(), der = panel.getBoundingClientRect();
+      return { x0: izq.right - L.left + 8, x1: (der.width ? der.left - L.left : W) - 8, y0: 0, y1: H, W, H };
+    }
+    return { x0: 0, x1: W, y0: 0, y1: H, W, H };
+  }
+  // setViewOffset descentra la proyección: la figura se recoloca en el hueco libre y la órbita sigue en torno al centro de interés.
+  function encuadrar() {
+    const z = zonaLibre();
+    camara.setViewOffset(z.W, z.H, -((z.x0 + z.x1) / 2 - z.W / 2), -((z.y0 + z.y1) / 2 - z.H / 2), z.W, z.H);
+  }
+  // El fov es vertical: al estrechar la zona se pierde ancho; la cámara se retira lo que haga falta.
+  function factorDistancia() {
+    const z = zonaLibre();
+    const ancho = Math.max(80, z.x1 - z.x0), alto = Math.max(80, z.y1 - z.y0);
+    return Math.min(3, Math.max(1, (z.H / alto) * Math.max(1, aspectoBase() / (ancho / alto))));
+  }
+  function mirarDesde(clave) {
+    let v = VISTAS[clave]; if (!v) return;
+    if (formato === "compacto" && v.compacto) v = { ...v, ...v.compacto };
+    vistaActual = clave;
+    const f = kVista = factorDistancia();
+    const mira = new THREE.Vector3(...(v.mira || [0, 0, 0]));
+    camara.position.set(...v.pos).sub(mira).multiplyScalar(f).add(mira);
+    orbita.target.copy(mira);
+    orbita.update();
+    fila.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.vista === clave)));
+    k.pedir();
+  }
+  // Tras cada fotograma: si cambió la zona libre (la ventana o los paneles), se reencuadra sin perder el ángulo.
+  function comprobarZona() {
+    const z = zonaLibre();
+    const clave = [z.W, z.H, z.x0, z.x1, z.y0, z.y1].map(Math.round).join(",");
+    if (clave === zonaClave) return;
+    zonaClave = clave;
+    if (!arrancado) return;
+    const f = factorDistancia();
+    camara.position.sub(orbita.target).multiplyScalar(f / kVista).add(orbita.target);
+    kVista = f;
+    encuadrar();
+    orbita.update();
+    k.pedir();
+  }
+
+  // ── Animación ──
+  // ANIMADA: la escena tiene algo en marcha. animar(t, e) es función pura de t (tiempo de animación) y del estado.
+  let ANIMADA = false, animar = () => {};
+  let pausado = false, tFlujo = tFijo ?? 0, tPrev = null, animadaVista = null;
+  function sincronizarPausa() {
+    if (ANIMADA === animadaVista) return;
+    if (animadaVista === false && ANIMADA && pausado) pausado = false;   // una animación nueva arranca, no se queda en pausa
+    animadaVista = ANIMADA;
+    botonPausa.hidden = !ANIMADA;
+    pintarPausa();
+    k.pedir();
+  }
+
+  // ── Refresco ──
+  function refrescar() {
+    for (const fn of alCambiarFns) fn(estado, anterior);
+    if (ANIMADA) animar(tFlujo, estado);
+    sincronizarPausa();
+    pintarMandos(); pintarTextos(); pintarGrafico();
+    marcarSombras();
+  }
+  // Colores de tema: los del núcleo para el texto y la mesa; los de la escena para lo demás.
+  function aplicarTema(nuevo) {
+    tema = nuevo;
+    const T = TEMAS[tema];
+    for (const [m, clave] of materiales) m.color.setHex(T[clave]);
+    hemi.color.setHex(T.hemiCielo); hemi.groundColor.setHex(T.hemiSuelo);
+    hemi.intensity = T.hemi; sol.intensity = T.sol;
+    for (const e of etiquetas) e.div.style.setProperty("--c", colorDe(e.color));
+    for (const fn of temaFns) fn(tema, T);
+    pintarGrafico();
+    marcarSombras();
+  }
+  function aplicarFormato(nuevo) {
+    formato = nuevo;
+    superposicion.dataset.formato = formato;
+    cont.dataset.formato = formato;
+    orbita.enableZoom = true;
+    if (formato === "compacto") ayudaEl.hidden = true;
+    colocarPrincipal();
+    ajustarGrupos();
+    if (arrancado) mirarDesde(vistaActual);
+    pintarGrafico();
+    zonaClave = "";
+    k.pedir();
+  }
+
+  // ── ANDAMIAJE (fin de la parte de arriba) ──────────────────────────────────────────
+  // ── CONTENIDO (inicio) ─────────────────────────────────────────────────────────────
+  // Ejemplo mínimo: una esfera que cambia de color según el estado y gira si se anima. Sustituir por el modelo de la ficha.
+  const CLAVE = "area/materia/unidad:lab";   // localStorage: área, materia y unidad, como en AGENTS.md
+  cabecera({ antetitulo: "ÁREA · TEMA", titulo: "Título del laboratorio", gancho: "La pregunta que la escena responde." });
+  definirEstado({ modo: "a", giro: false });
+
+  const matA = mat("azul"), matB = mat("naranja");
+  const esfera = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), matA);
+  esfera.castShadow = true;
+  escena.add(esfera);
+  pedestal({ ancho: 4, fondo: 4, alto: 0.3 });
+  etiqueta(esfera, (e) => `Modo · ${e.modo}`, { color: "naranja", alto: 1.4, prioridad: 1 });
+
+  grupo("Modo", "modo", [
+    { valor: "a", texto: "Azul", tecla: "1" },
+    { valor: "b", texto: "Naranja", tecla: "2" },
+  ], { principal: true });
+  capa("Giro", "giro", "g");
+
+  cifra("Modo", (e) => ({ valor: e.modo, sub: "estado actual" }));
+  relato((e) => `Con el modo <b>${e.modo}</b> la esfera ${e.modo === "a" ? "es azul" : "es naranja"}.`);
+
+  alCambiar((e) => {
+    esfera.material = e.modo === "a" ? matA : matB;
+    ANIMADA = !!e.giro;
+  });
+  animar = (t) => { esfera.rotation.y = t * 0.6; };   // función pura de t
+
+  VISTAS = { inicial: { pos: [0, 4, 7], mira: [0, 0.5, 0] } };
+  ASPECTO_BASE = 1.72;
+  // ── CONTENIDO (fin) ────────────────────────────────────────────────────────────────
+
+  // ── ANDAMIAJE (arranque) ───────────────────────────────────────────────────────────
+  k.render.shadowMap.autoUpdate = false;
+  orbita.maxPolarAngle = Math.PI * 0.49;
+  orbita.minDistance = 3; orbita.maxDistance = 40;
+  k.alCambiarTema((c) => aplicarTema(c.oscuro ? "oscuro" : "claro"));
+  k.alCambiarFormato(aplicarFormato);
+
+  for (const clave of vistasVisibles()) {
+    const b = el("button", "lab-boton", clave[0].toUpperCase() + clave.slice(1));
+    b.type = "button"; b.dataset.vista = clave;
+    b.addEventListener("click", () => mirarDesde(clave));
+    fila.append(b);
+  }
+  botonPausa.addEventListener("click", () => { pausado = !pausado; pintarPausa(); k.pedir(); });
+  atajos.push({ tecla: " ", texto: "Pausa", activo: () => ANIMADA, fn: () => { if (ANIMADA) botonPausa.click(); } });
+  atajos.push({ tecla: "0", texto: "Vista inicial", fn: () => mirarDesde(vistaBase()) });
+  // Atajos: solo en pantalla completa. Dentro de la página, las teclas son de la página.
+  addEventListener("keydown", (ev) => {
+    if (formato !== "completo" || ev.ctrlKey || ev.metaKey || ev.altKey || ev.target.matches?.("input")) return;
+    if (ev.key === " " && ev.target.tagName === "BUTTON") return;   // un botón enfocado se pulsa con su propia barra
+    if (ev.key === "?" || ev.key === "h") { alternarAyuda(); return; }
+    const a = atajos.find((x) => x.tecla === ev.key && (!x.activo || x.activo()));
+    if (a) { ev.preventDefault(); a.fn(); }
+  });
+
+  // Primer refresco antes de arrancado: la colocación inicial de los cables es inmediata, sin transición.
+  refrescar();
+  arrancado = true;
+  encuadrar();
+  mirarDesde(VISTAS[url.get("vista")] ? url.get("vista") : vistaBase());
+  zonaClave = "";
+  comprobarZona();
+
+  return {
+    // Animación pedida al núcleo solo mientras algo se mueve: flujo en marcha o transición pendiente.
+    animando: () => transiciones.length > 0 || (ANIMADA && !pausado),
+    actualizar(tt) {
+      const dt = tPrev === null ? 0 : tt - tPrev;
+      tPrev = tt;
+      if (ANIMADA && !pausado) tFlujo += dt;
+      if (avanzarTransiciones()) marcarSombras();
+      if (ANIMADA) animar(tFlujo, estado);
+    },
+    despues() { resolverEtiquetas(); comprobarZona(); },
+    // Órdenes de los botones data-3d: claves del estado. `vista` lo resuelve el núcleo.
+    orden(d) {
+      const cambios = {};
+      for (const c of Object.keys(d)) if (estado && c in estado) cambios[c] = d[c];
+      if (d.vista && VISTAS[d.vista]) mirarDesde(d.vista);
+      if (Object.keys(cambios).length) cambiar(cambios);
+    },
+  };
+}
+
+arrancarEscena(montar);
+</script>
+</body>
+</html>

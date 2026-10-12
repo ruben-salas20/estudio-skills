@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TÍTULO DE LA FIGURA</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<!-- FIGURA de la skill escenas-3d. Solo la figura y sus mandos; la explicación va en la nota que la incrusta.
+     Las etiquetas nombran piezas en dos o tres palabras. El aria-label nombra el lienzo. -->
+<div class="escena3d" id="escena" aria-label="QUÉ SE VE, EN UNA FRASE"></div>
+<script>
+  // Si el módulo no llega a arrancar (sin conexión al CDN, error de sintaxis), lo dice en vez de quedar en blanco.
+  setTimeout(() => { if (!document.body.dataset.listo && !document.getElementById("diag")) document.querySelector(".escena3d").insertAdjacentHTML("beforeend", '<p class="fallo3d" style="padding:1rem">La escena 3D no arrancó. Comprueba la conexión o abre la consola del navegador.</p>'); }, 10000);
+</script>
+<script type="module">
+// ── NÚCLEO (inicio): lo escribe scripts/armar.mjs desde assets/nucleo.js; no se edita aquí ──
+// ── NÚCLEO (fin) ──
+
+function montar(k) {
+  const { THREE, escena } = k;
+
+  k.vistas = {
+    iso: { nombre: "Inclinada", pos: [6, 4.5, 7] },
+    frente: { nombre: "De frente", pos: [0, 1.5, 9] },
+    arriba: { nombre: "Desde arriba", pos: [0, 10, 0.01] },
+  };
+  k.sombraSuelo(-1.6);
+
+  const material = new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.1 });
+  const cuerpo = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 0), material);
+  cuerpo.castShadow = true;
+  escena.add(cuerpo);
+  k.etiqueta(cuerpo, "la pieza", { color: "orange", alto: 2 });
+
+  // Todo color que dependa del tema, aquí: se llama al registrarse y en cada cambio de tema.
+  k.alCambiarTema((c) => { material.color.set(c.orange); });
+
+  return {
+    // Función pura de t (segundos): con ?t= sale siempre el mismo fotograma. Sin movimiento, se quita.
+    actualizar(t) { cuerpo.rotation.y = t * 0.6; },
+    // Órdenes de los botones data-3d de la nota, además de "vista", que la resuelve el núcleo.
+    orden(d) { if ("ver" in d) cuerpo.visible = d.ver; },
+  };
+}
+
+arrancarEscena(montar);
+</script>
+</body>
+</html>

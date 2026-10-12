@@ -19,7 +19,7 @@ Necesitas un agente que use skills y pueda lanzar subagentes, como [Claude Code]
 
 2. Abre tu agente y escribe `/setup-estudio-skills`. Te pregunta cómo te gusta aprender y dónde está tu carpeta de estudio, y escribe tu `AGENTS.md`.
 
-Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe. Solo `/crear-kit` y `/videos` son opcionales.
+Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe. Solo `/crear-kit`, `/videos` y `/escenas-3d` son opcionales.
 
 > [!WARNING]
 > **`/videos` ocupa unos 5 MB** (motor, estilos y vídeos de ejemplo) y necesita **Node, Playwright, Chromium y ffmpeg**. El setup comprueba cuáles te faltan y te da el comando para instalarlos. Si no vas a hacer vídeos, quítala:
@@ -29,6 +29,8 @@ Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe
 > ```
 >
 > `/explicar` lo detecta y deja de ofrecer el vídeo.
+
+`/escenas-3d` necesita **Node 22 o superior y Chromium o Chrome** para comprobar las escenas. Si no la quieres, quítala con `npx skills remove --global escenas-3d`.
 
 **Para actualizar,** ejecuta `npx skills update -g` y después `/setup-estudio-skills`. La actualización sobrescribe las skills; el setup vuelve a aplicar las mejoras que aprobaste, guardadas en `MEJORAS.md`.
 
@@ -87,6 +89,7 @@ Empieza con `/estudiar`. Te pregunta qué quieres aprender y para qué, y elige 
 | `/mejorar-estudio` | Revisa tus resultados y propone cambios al sistema, con datos. |
 | `/crear-kit` | Opcional. Crea tu kit de páginas HTML con tus colores y solo los componentes que necesitas. |
 | `/videos` | Opcional. Hace vídeos animados con código para explicar un tema. La usa `/explicar`. Necesita Node, Playwright, Chromium y ffmpeg. |
+| `/escenas-3d` | Opcional. Hace escenas 3D interactivas con Three.js, para lo que se entiende mejor girándolo. La usa `/explicar`. Necesita Node 22 o superior y Chromium o Chrome. |
 
 `/clase-a-tema` y `/estudiar-fase` se empiezan en una sesión nueva: así cada sesión trata un solo tema.
 
@@ -116,7 +119,14 @@ Si usas Linux con Wayland, prueba [visor](https://github.com/ruben-salas20/visor
 
 ## Créditos
 
-`/explicar` incluye ideas de `show-me`, una skill de autor desconocido que llegó compartida. Las licencias de terceros están en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Gracias a quienes inspiraron este trabajo:
+
+- [Matt Pocock](https://github.com/mattpocock/skills), por sus skills: de ellas sale la idea de un flujo de skills que se usan entre ellas.
+- Ryan Sael, por sus [explicaciones visuales](https://sael.net/explainers/): `/escenas-3d` sigue su enfoque didáctico, y sus laboratorios de ejemplo se inspiran en ellas.
+- [wheresryan22](https://github.com/wheresryan22/anatomy), por la skill `anatomy`, que inspiró mejoras de `/escenas-3d`.
+- [HumanLayer](https://github.com/humanlayer/skills), por su skill `show-me`: `/explicar` incluye ideas suyas.
+
+No se ha copiado código de estos proyectos. Las licencias de terceros están en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Licencia
 
