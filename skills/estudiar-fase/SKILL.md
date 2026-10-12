@@ -19,6 +19,7 @@ Una sesión de estudio: uno o varios subtemas cortos de la fase en curso. Empiez
 4. **Escribe la página** `Temas/<n.m> <Subtema>`, en el formato del curso.
    - Antes, busca en `Temas/` lo que ya existe: lo que ya tiene página se enlaza, no se repite.
    - Persigue la **meta** del subtema en el archivo de la fase y apóyate en sus fuentes de `Recursos/`, citándolas.
+   - Los recursos visuales siguen `../explicar/recursos.md`.
    - Termina con 2 o 3 preguntas de repaso que no se respondan copiando una línea.
    - Metadatos: `estado: nuevo` y `repasar` vacío.
    - Enlázala desde el índice del curso.
