@@ -22,7 +22,18 @@
     for (const [n, css] of Object.entries(DE_LA_NOTA)) { const v = cs.getPropertyValue(css).trim(); if (v) colores[n] = v; }
     f.contentWindow?.postMessage({ tipo: "tema", tema: oscuro() ? "oscuro" : "claro", colores }, "*");
   };
-  addEventListener("message", (e) => { if (e.data?.tipo === "escena3d-lista") escenas().filter((f) => f.contentWindow === e.source).forEach(tema); });
+  // Una escena con loading="lazy" aún sin cargar pierde la orden: se manda igual (por si ya estaba lista antes de este
+  // guion) y se repite cuando avise de que está lista. Las órdenes fijan estado, así que repetirla no cambia nada.
+  const listas = new WeakSet(), pendientes = new Map();
+  const ordenar = (f, d) => f.contentWindow.postMessage({ tipo: "orden", orden: d }, "*");
+  addEventListener("message", (e) => {
+    if (e.data?.tipo !== "escena3d-lista") return;
+    for (const f of escenas().filter((f) => f.contentWindow === e.source)) {
+      listas.add(f);
+      tema(f);
+      if (pendientes.has(f)) { ordenar(f, pendientes.get(f)); pendientes.delete(f); }
+    }
+  });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => escenas().forEach(tema));
   new MutationObserver(() => escenas().forEach(tema)).observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style", "data-theme", "data-tema"] });
   document.addEventListener("click", (e) => {
@@ -33,6 +44,7 @@
     const f = d.en ? document.getElementById(d.en) : escenas()[0];
     if (!f?.contentWindow) return console.error(`incrustar: no hay escena con id "${d.en}"`);
     f.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
-    f.contentWindow.postMessage({ tipo: "orden", orden: d }, "*");
+    ordenar(f, d);
+    if (!listas.has(f)) pendientes.set(f, d);
   });
 })();
