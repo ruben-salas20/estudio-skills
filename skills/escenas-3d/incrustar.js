@@ -1,6 +1,6 @@
 // Incrusta escenas 3D (skill escenas-3d) en una nota. La nota pone cada escena en un iframe con id:
 //   <iframe id="router" src="escenas/router-moe.html" title="…" allowfullscreen loading="lazy"
-//           style="width:100%; aspect-ratio:16/10; border:0; border-radius:12px"></iframe>
+//           style="width:100%; aspect-ratio:16/9; border:0; border-radius:12px"></iframe>
 // y carga este archivo una vez (copiado junto a la nota o pegado en un <script>). Hace dos cosas:
 // - un botón con data-3d='{"en":"router","vista":"lado"}' manda esa orden a la escena «router»;
 // - pasa a cada escena el tema y los colores de la nota, si la nota los define.

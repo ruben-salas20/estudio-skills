@@ -1,6 +1,6 @@
 # Recetas visuales
 
-Técnicas de *realismo* sin posprocesado (`laboratorio.md` §5), probadas en el render por software de las capturas. Cada una dice cuándo usarla: aplicarlas todas a todo es decorar. Código completo de referencia en `references/ejemplos/` de esta skill: `motor-raptor-flujo-completo.html` (§1-§5), `como-un-rio-rehace-su-valle.html` (§6-§9), `como-bombea-el-corazon.html` (§10-§11).
+Técnicas de *realismo* sin posprocesado, probadas en el render por software de las capturas. Cada una dice cuándo usarla: aplicarlas todas a todo es decorar.
 
 | Si el tema tiene… | Receta |
 |---|---|
@@ -34,13 +34,15 @@ Cada superficie lleva la rugosidad y el metalizado de lo que representa; el colo
 **Entorno, solo si hay algo que refleja** (metal, agua, vidrio). Se genera una vez y no cuesta nada por fotograma; con él, el comentario de `mat()` sobre «metalness alto sale negro» deja de aplicar:
 
 ```js
-const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
-const pmrem = new THREE.PMREMGenerator(render);
-escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-pmrem.dispose();
+import('three/addons/environments/RoomEnvironment.js').then(({ RoomEnvironment }) => {   // montar() no es async
+  const pmrem = new THREE.PMREMGenerator(render);
+  escena.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+  k.pedir();
+});
 escena.environmentIntensity = 0.4;                 // moderado: no aplastar la luz direccional
 alCambiarTema((n, T) => { hemi.intensity = T.hemi * 0.6; });   // el entorno ya aporta luz
-for (const m of [suelo.material, pedestal.material]) m.envMapIntensity = 0.25;   // lo mate, casi nada
+// A lo mate (suelo, pedestal) bájale el reflejo: material.envMapIntensity = 0.25.
 ```
 
 ## 2. Magnitud → apariencia
@@ -79,7 +81,17 @@ gl_FragColor = vec4(col, clamp(uOpac * I * pow(f, uBorde), 0.0, 1.0));
 #include <colorspace_fragment>
 ```
 
-(`fbm` = 3 octavas de ruido de valor 3D; `hash3` y `ruido`, en la escena del motor.)
+`fbm` son 3 octavas de ruido de valor 3D:
+
+```glsl
+float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float ruido(vec3 p) {
+  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(hash3(i), hash3(i + vec3(1,0,0)), f.x), mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x), mix(hash3(i + vec3(0,1,1)), hash3(i + 1.0), f.x), f.y), f.z);
+}
+float fbm(vec3 p) { return 0.5 * ruido(p) + 0.25 * ruido(p * 2.0) + 0.125 * ruido(p * 4.0); }
+```
 
 - **El borde por `N·V`** da el aspecto de volumen: la capa se desvanece donde se ve de canto.
 - Material: `transparent: true, depthWrite: false, side: DoubleSide`.
@@ -103,7 +115,7 @@ halo.material.color.setHex(0xffb060);   // tinte del emisor
 
 ## 5. Corte con sección
 
-Media pieza quitada, la pared **con su grosor rayado** como en un plano técnico y el interior visible. Sin pasada de stencil. Si solo importa el flujo interior, más barato: carcasas casi transparentes (`laboratorio.md` §6).
+Media pieza quitada, la pared **con su grosor rayado** como en un plano técnico y el interior visible. Sin pasada de stencil. Si solo importa el flujo interior, más barato: carcasas casi transparentes (opacidad ~0,1, sin `castShadow`).
 
 1. **Las piezas cortables son sólidos cerrados**: pared exterior y pared interior con las normales hacia dentro (`LatheGeometry` de un perfil rectangular cerrado; en cajas, una dentro de otra con la interior invertida). Una superficie de una hoja cortada se ve hueca.
 2. **Plano de recorte** en los materiales cortables:
