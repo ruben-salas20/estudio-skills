@@ -24,7 +24,7 @@ En el `<head>`, después de los `<meta>`:
 
 ```html
 <meta name="curso" content="Rust">
-<meta name="clave" content="rust/1.2">     <!-- única; la usan el repaso y el visor -->
+<meta name="clave" content="rust/1.2">     <!-- única; la usa el repaso -->
 <meta name="estado" content="nuevo">       <!-- nuevo, en-progreso, dominado -->
 <meta name="repasar" content="">           <!-- AAAA-MM-DD del próximo repaso -->
 ```
@@ -34,6 +34,6 @@ En el `<head>`, después de los `<meta>`:
 - **Fórmulas:** `$…$` en línea y `$$…$$` aparte. El kit carga KaTeX solo si la página tiene `$`.
 - **Diagramas:** `<pre class="mermaid">…</pre>`. El kit carga Mermaid solo si hay uno.
 - **Avisos:** `<div class="aviso">`; para errores típicos, `<div class="aviso error-comun">`.
-- **Repaso:** `<section class="repaso">` con un `<div class="q">` por pregunta. Abierta: solo el `<p>` del enunciado; el kit añade el cuadro de respuesta. Opción múltiple: un `<ol class="ops">` con un `<li data-correcta>` y cada distractor con `data-por="por qué no"`; el kit baraja, corrige al elegir y muestra el `.explica`. Al final añade «Enviar repaso», que manda las respuestas al visor si este ofrece `window.visor.send`; si no, las deja en la consola.
+- **Repaso:** `<section class="repaso">` con un `<div class="q">` por pregunta. Abierta: solo el `<p>` del enunciado; el kit añade el cuadro de respuesta. Opción múltiple: un `<ol class="ops">` con un `<li data-correcta>` y cada distractor con `data-por="por qué no"`; el kit baraja, corrige al elegir y muestra el `.explica`. Al final añade «Enviar repaso», que lanza un evento `kit:review` en `window` con las respuestas, para que lo escuche cualquier app que aloje la página, y también las deja en la consola.
 
 `window.Kit` trae `Kit.meta` (los `<meta>` leídos) y `Kit.enviar(datos)`.

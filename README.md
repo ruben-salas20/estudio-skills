@@ -1,5 +1,7 @@
 # estudio-skills
 
+También existe una versión en inglés: https://github.com/ruben-salas20/study-skills
+
 Skills para estudiar con un agente de IA. Le dices qué quieres aprender y el agente investiga, arma un plan, escribe páginas de estudio, te evalúa y programa los repasos. Con el tiempo, el sistema aprende cómo aprendes tú y propone cambios para enseñarte mejor.
 
 Sirve para dos tipos de estudio:

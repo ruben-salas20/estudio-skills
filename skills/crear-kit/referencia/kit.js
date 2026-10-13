@@ -9,9 +9,11 @@
     for (const m of document.querySelectorAll("meta[name]")) meta[m.name] = m.content;
   };
 
-  // Si el visor ofrece una API para recibir datos de la página, se usa; si no, queda en la consola.
-  const enviar = (datos) =>
-    window.visor?.send ? window.visor.send(datos) : console.info("kit: sin visor que reciba", datos);
+  // Anuncia el repaso como evento "kit:review" en window, para que lo escuche cualquier app que aloje la página. También queda en la consola.
+  const enviar = (datos) => {
+    window.dispatchEvent(new CustomEvent("kit:review", { detail: datos }));
+    console.info("kit: repaso", datos);
+  };
 
   const cargarCss = (href) => {
     const l = document.createElement("link");
