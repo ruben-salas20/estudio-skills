@@ -5,4 +5,4 @@ Un solo archivo HTML centrado en una idea: un diagrama, una infografía o unas p
 - Si el curso tiene un kit de páginas configurado en `<RAIZ>/AGENTS.md`, úsalo. Si no, el archivo es autónomo: sin dependencias externas, legible en modo claro y oscuro, y usable en ordenador y en móvil.
 - Usa etiquetas y datos reales del tema, no de relleno.
 - El dibujo y si es interactivo se eligen con `recursos.md`.
-- Llámalo `explicar-<tema>.html`, guárdalo donde diga el paso 5 de `SKILL.md` y ábrelo para la persona.
+- Llámalo `explicar-<tema>.html`, guárdalo donde diga el paso 6 de `SKILL.md` y ábrelo para la persona.

@@ -17,7 +17,7 @@ Escribe un archivo por fase en `fases/` y, una vez que `/plan-estudio` lo creó,
 
 1. **Lee el curso.** `PLAN.md`, `MISION.md`, `BASES.md`, los `NOTAS.md`, los archivos de `fases/` y el registro de `/evaluar`, si existen. Hecho cuando sabes en qué modo estás y, al revisar, el motivo.
 
-2. **Escribe o propón el detalle.** Cada fase va en `fases/<n> — <Tema>.md`:
+2. **Escribe o propón el detalle.** Cada fase va en `fases/<n>-<tema>.md`, con el tema en minúsculas, sin tildes y con guiones en lugar de espacios (`fases/1-la-memoria-que-python-oculta.md`), para enlazarlo sin rodeos:
 
    ```markdown
    # Fase <n>. <Tema>
