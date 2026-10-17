@@ -27,7 +27,7 @@ Para cursos de una institución. La fuente es la clase: lo que dijo el docente m
    - Cuenta lo que dijo la clase y cítala. Lo que añadas de otra fuente se marca como añadido. Cada imprecisión va en un aviso, junto a lo que dijo el docente: la persona decide.
    - Los recursos visuales siguen `../explicar/recursos.md`.
    - Enlaza lo que ya tiene página en vez de repetirlo.
-   - Termina con 2 o 3 preguntas de repaso que no se respondan copiando una línea.
+   - Preguntas de repaso solo si son parte de la explicación: predecir algo y comprobarlo en un recurso interactivo, o una opción múltiple cuyas opciones falsas son errores típicos, cada una con su porqué. La evaluación es de `/evaluar`; no cierres la página con preguntas por costumbre.
    - Metadatos: `estado: nuevo` y `repasar` vacío.
    - Enlázalas desde el índice de la materia.
 

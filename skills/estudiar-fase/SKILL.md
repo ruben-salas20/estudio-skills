@@ -20,7 +20,7 @@ Una sesión de estudio: uno o varios subtemas cortos de la fase en curso. Empiez
    - Antes, busca en `Temas/` lo que ya existe: lo que ya tiene página se enlaza, no se repite.
    - Persigue la **meta** del subtema en el archivo de la fase y apóyate en sus fuentes de `Recursos/`, citándolas.
    - Los recursos visuales siguen `../explicar/recursos.md`.
-   - Termina con 2 o 3 preguntas de repaso que no se respondan copiando una línea.
+   - Preguntas de repaso solo si son parte de la explicación: predecir algo y comprobarlo en un recurso interactivo, o una opción múltiple cuyas opciones falsas son errores típicos, cada una con su porqué. La evaluación es de `/evaluar`; no cierres la página con preguntas por costumbre.
    - Metadatos: `estado: nuevo` y `repasar` vacío.
    - Enlázala desde el índice del curso.
 

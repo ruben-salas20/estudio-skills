@@ -15,7 +15,7 @@ Comprueba si la persona alcanzó la meta de un subtema. Es la única skill que c
 
 ## Pasos
 
-1. **Prepara la prueba.** Lee la página del subtema, su **meta** en `fases/` y lo que pide de él la **Evaluación** de la fase. Prepara de 3 a 5 preguntas distintas de las de repaso de la página y un ejercicio que aplique la meta. Un curso de institución no tiene `fases/` ni `PLAN.md`: la meta sale de la página y de lo que el docente dijo que entra. Si el curso tiene un componente de evaluación interactivo, úsalo. Escribe para ti la respuesta correcta de cada ítem antes de preguntar. Hecho cuando cada ítem tiene su clave.
+1. **Prepara la prueba.** Lee la página del subtema, su **meta** en `fases/` y lo que pide de él la **Evaluación** de la fase. Prepara de 3 a 5 preguntas distintas de las de repaso de la página, si las tiene, y un ejercicio que aplique la meta. Un curso de institución no tiene `fases/` ni `PLAN.md`: la meta sale de la página y de lo que el docente dijo que entra. Si el curso tiene un componente de evaluación interactivo, úsalo. Escribe para ti la respuesta correcta de cada ítem antes de preguntar. Hecho cuando cada ítem tiene su clave.
 
 2. **Pregunta de una en una.** Durante la prueba solo preguntas y escuchas: las pistas son de `/repaso`. Hecho cuando la persona respondió todo.
 
