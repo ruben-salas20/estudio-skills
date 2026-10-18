@@ -12,7 +12,7 @@ Una sesión de estudio: uno o varios subtemas cortos de la fase en curso. Empiez
 
 1. **Sitúate.** El curso es, en este orden: el de la carpeta donde se abrió la sesión (la que tiene `MISION.md`, o una superior); el que diga el argumento; el único de `<RAIZ>` con `PLAN.md`. Si hay varios y nada lo decide, enuméralos y pregunta. Lee `<RAIZ>/AGENTS.md`, `PLAN.md`, `MISION.md`, `BASES.md` y los `NOTAS.md`. El subtema es el primer `[ ]` del árbol, y la fase en curso, la suya: lee su archivo en `fases/`. Si ese subtema ya tiene página, la sesión anterior quedó a medias y se retoma. Hecho cuando dices curso, fase y subtema en una línea.
 
-2. **Ofrece los repasos vencidos** con el paso 2 de `../estudiar/SKILL.md`. Hecho cuando no hay o la persona eligió.
+2. **Ofrece los repasos vencidos** con el paso 2 (**Ofrece los repasos vencidos**) de `../estudiar/SKILL.md`. Hecho cuando no hay o la persona eligió.
 
 3. **Investiga la fase** si es su primera sesión, es decir, si ningún subtema de la fase tiene página. Lanza un subagente con `../indagar/investigar-fuentes.md`, limitado a los subtemas de esta fase y sus huecos, y espera su informe. Muestra los huecos y las contradicciones que traiga. Hecho cuando terminó o la fase ya estaba investigada.
 
@@ -28,8 +28,8 @@ Una sesión de estudio: uno o varios subtemas cortos de la fase en curso. Empiez
 
 5. **Estudia la página con la persona.** Ábrela y deja que la lea. Responde sus dudas. Cuando una duda muestre que la página no se entiende, corrige la página además de responder. Lo que aprendas de cómo aprende va a `NOTAS.md`: lo general va a `<RAIZ>/NOTAS.md` y lo propio del curso, al suyo. Hecho cuando la persona dice que está lista.
 
-6. **Evalúa.** Sigue `../evaluar/SKILL.md` y vuelve aquí con su resultado. Si vuelve tras 2 fallos seguidos, rehaz la página desde otro ángulo, con lo que falló, comprueba en `BASES.md` si falta un requisito y regresa al paso 5.
+6. **Evalúa.** Sigue `../evaluar/SKILL.md` y vuelve aquí con su resultado. Si vuelve tras 2 fallos seguidos, rehaz la página desde otro ángulo, con lo que falló, comprueba en `BASES.md` si falta un requisito y regresa al paso 5 (**Estudia la página con la persona**).
 
 7. **Cierra la sesión.**
-   - **Quedan subtemas en la fase:** si el siguiente es corto y la sesión aún es breve, vuelve al paso 4 con él. Si no, termina y di que se sigue con `/estudiar-fase` en una sesión nueva: abierta en la carpeta del curso (di su ruta) o con el curso como argumento, `/estudiar-fase <curso>`.
+   - **Quedan subtemas en la fase:** si el siguiente es corto y la sesión aún es breve, vuelve al paso 4 (**Escribe la página**) con él. Si no, termina y di que se sigue con `/estudiar-fase` en una sesión nueva: abierta en la carpeta del curso (di su ruta) o con el curso como argumento, `/estudiar-fase <curso>`.
    - **Fase terminada** (ningún `[ ]`): revisa la fase siguiente con lo observado (fallos, dudas, `NOTAS.md`). Si necesita cambios, lee `../fases-plan/SKILL.md` y síguelo en modo **Revisar**. Si no, di qué fase empieza.

@@ -15,7 +15,7 @@ Prepara las dos entradas del plan: qué dicen las fuentes del tema y desde dónd
 2. **Lanza el subagente** en segundo plano. Dale el tema, los límites de la misión, la ruta de `Recursos/` del curso y esta orden: «Lee `<ruta absoluta de investigar-fuentes.md>` y síguelo». Ese archivo, junto a este, es el prompt del subagente. Hecho cuando está en marcha.
 
 3. **Averigua las bases** mientras investiga.
-   - Pregunta qué sabe ya del tema y de lo que lo rodea. Si dice que nada, anótalo y pasa al paso 4: se empieza de cero.
+   - Pregunta qué sabe ya del tema y de lo que lo rodea. Si dice que nada, anótalo y pasa al paso 4 (**Escribe `BASES.md`**): se empieza de cero.
    - Comprueba lo que dice saber con 3 a 5 preguntas cortas, de lo más básico a lo más avanzado. Lo que alguien cree saber y lo que sabe no siempre coinciden. Para en la primera pregunta que falle claramente.
 
    Hecho cuando cada cosa que dijo saber está **comprobada** o **por comprobar**.

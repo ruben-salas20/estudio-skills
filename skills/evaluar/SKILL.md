@@ -34,9 +34,9 @@ Comprueba si la persona alcanzó la meta de un subtema. Es la única skill que c
    | Aprueba un repaso programado de 28 días o más | `dominado`, `[x]` | vacío |
    | Falla un repaso programado | `en-progreso`, `[~]` | en 1 día, tras `/repaso` |
 
-   Un fallo tras estudiar no cambia el estado: sigue el paso 6. Hecho cuando la página y `PLAN.md` dicen lo mismo.
+   Un fallo tras estudiar no cambia el estado: sigue el paso 6 (**Sigue según el resultado**). Hecho cuando la página y `PLAN.md` dicen lo mismo.
 
 6. **Sigue según el resultado.**
    - **Aprueba:** vuelve a la skill que te llamó.
-   - **Falla por primera vez:** lee `../repaso/SKILL.md` y síguelo; después repite desde el paso 1 con preguntas nuevas.
+   - **Falla por primera vez:** lee `../repaso/SKILL.md` y síguelo; después repite desde el paso 1 (**Prepara la prueba**) con preguntas nuevas.
    - **Falla tras un `/repaso`:** son 2 fallos seguidos. Tras estudiar, vuelve a la skill que creó la página (`/estudiar-fase` o `/clase-a-tema`) con lo que falló. En un repaso programado, pon `repasar` a mañana y di que la página se rehace con esa skill en una sesión nueva.

@@ -23,7 +23,7 @@ Tres estilos: **`3b1b`** (matemática animada al modo de 3Blue1Brown) si el tema
 
    Escribe en el chat, por plano: la parte, lo que se ve, la **acción principal** con su anticipación, la acción y la reacción en segundos (§ Animación), el rótulo exacto, los sucesos que suenan y la duración. Hecho cuando cada paso cuenta un solo concepto, cada uno se entiende con lo visto antes, cada plano tiene una sola acción principal con sus tres tiempos y la persona da el visto bueno.
 
-3. **Prepara el archivo.** Lee entero `MOTOR.md`. Copia `motor.html` como `<nombre>.html` junto a la nota (o donde el proyecto guarde sus adjuntos: mira cómo está organizado y sigue ese patrón). Rellena `{{TITULO}}` y `{{SINOPSIS}}`, el bloque `FORMAT` con los valores del estilo y un `poster` y pega `estilos/<estilo>.js` entre `KIT-INICIO` y `KIT-FIN`. Hecho cuando la captura del paso 5 sale sin error.
+3. **Prepara el archivo.** Lee entero `MOTOR.md`. Copia `motor.html` como `<nombre>.html` junto a la nota (o donde el proyecto guarde sus adjuntos: mira cómo está organizado y sigue ese patrón). Rellena `{{TITULO}}` y `{{SINOPSIS}}`, el bloque `FORMAT` con los valores del estilo y un `poster` y pega `estilos/<estilo>.js` entre `KIT-INICIO` y `KIT-FIN`. Hecho cuando la captura del paso 5 (**Construye plano a plano**) sale sin error.
 
 4. **Voz**, si se pidió: sigue `voz.md`. Hecho cuando cada clip está incrustado y el `dur` de cada plano cubre su frase.
 

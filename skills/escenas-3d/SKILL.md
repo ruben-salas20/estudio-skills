@@ -24,7 +24,7 @@ Una **escena** es un solo archivo `.html` que se abre con doble clic y se incrus
    - Los nombres de la plantilla (`escena`, `camara`, `render`, `estado`, `t`…) no se redeclaran: la escena falla al arrancar.
    - `linewidth` se ignora: una línea gruesa es un tubo.
 
-   Hecho cuando cada pieza que se mueve corresponde a algo del paso 1 y cada momento es una opción del grupo principal.
+   Hecho cuando cada pieza que se mueve corresponde a algo del paso 1 (**Elige el objeto y la pregunta**) y cada momento es una opción del grupo principal.
 
 4. **Captura y mira.** Abre el PNG siempre: el encuadre, las etiquetas pisadas y la luz solo se ven mirando.
 

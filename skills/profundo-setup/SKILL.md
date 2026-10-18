@@ -10,7 +10,7 @@ Crea el sitio donde vivirá un estudio a fondo. Cada skill posterior crea sus pr
 
 ## Pasos
 
-1. **Consigue la ficha.** Viene de `/estudiar` en esta conversación. Si no está, hazla con el paso 3 de `../estudiar/SKILL.md`. Hecho cuando tienes los cinco campos confirmados.
+1. **Consigue la ficha.** Viene de `/estudiar` en esta conversación. Si no está, hazla con el paso 3 (**Haz la ficha**) de `../estudiar/SKILL.md`. Hecho cuando tienes los cinco campos confirmados.
 
 2. **Elige el sitio.** Mira cómo está organizada `<RAIZ>` y sigue ese patrón. Si está vacía:
    - **Fuente institución:** `<RAIZ>/Institucion/<periodo>/<Materia>/`, con `_Inbox/` en la carpeta del periodo para el material de clase. Pregunta el periodo si no lo sabes.

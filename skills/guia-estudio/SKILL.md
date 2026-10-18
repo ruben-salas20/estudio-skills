@@ -28,7 +28,7 @@ Las sesiones nuevas leen todo de los archivos del curso: `MISION.md`, `NOTAS.md`
 
 ## Pasos
 
-1. **Elige el modo.** Con una pregunta como argumento, ve al paso 3. Sin argumento, al paso 2.
+1. **Elige el modo.** Con una pregunta como argumento, ve al paso 3 (**Responde la pregunta**). Sin argumento, al paso 2 (**Recomienda el paso siguiente**).
 
 2. **Recomienda el paso siguiente.** Recorre `<RAIZ>`: cada carpeta con `MISION.md` es un curso. Si no hay ninguno, recomienda `/estudiar`. Si no, busca en este orden y recomienda lo primero que encuentres:
    1. páginas con `repasar` anterior a hoy → `/estudiar`, que las ofrece en modo repaso programado;
