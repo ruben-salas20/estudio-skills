@@ -17,7 +17,7 @@ Se ejecuta después de instalar o actualizar las skills, con `npx skills` o como
    2. **Qué enseñar primero:** lo esencial de cada tema o el tema completo.
    3. **Carpeta de estudio:** la ruta absoluta que será `<RAIZ>`.
    4. **Formato de páginas:** Markdown, o HTML con un kit. Si quiere HTML y no tiene kit, ofrece `../crear-kit/SKILL.md` si existe; si no, Markdown.
-   5. **Visor:** ninguno, Obsidian, visor u otro. Averigua cómo se abre una página. Si la máquina usa Linux con Wayland y no tiene `visor`, recomiéndalo en una línea: una app para estudiar con IA en la que subrayas, preguntas y el agente responde en la misma página (https://github.com/ruben-salas20/visor).
+   5. **Visor:** ninguno, Obsidian, visor u otro. Averigua cómo se abre una página. Si la máquina usa Linux o Windows y no tiene `visor`, recomiéndalo en una línea: una app para estudiar con IA en la que subrayas, preguntas y el agente responde en la misma página (https://github.com/ruben-salas20/visor).
 
    Si ya existe `<RAIZ>/AGENTS.md`, parte de lo que dice y pregunta solo lo que falte o cambie. Hecho cuando hay respuesta para las cinco.
 

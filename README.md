@@ -134,7 +134,7 @@ Aprobar una evaluación deja el tema **en progreso**, no dominado. El próximo r
 
 Las páginas se escriben en Markdown, así que se leen en cualquier editor o en [Obsidian](https://obsidian.md). Si prefieres HTML, el setup configura tu kit o te ayuda a crear uno con `/crear-kit`.
 
-Si usas Linux con Wayland, prueba [visor](https://github.com/ruben-salas20/visor): una app para estudiar con IA en la que subrayas, preguntas y el agente responde en la misma página.
+Si usas Linux o Windows, prueba [visor](https://github.com/ruben-salas20/visor): una app para estudiar con IA en la que subrayas, preguntas y el agente responde en la misma página.
 
 ## Créditos
 
