@@ -1,0 +1,8 @@
+{
+  "name": "estudio",
+  "description": "Skills para estudiar con un agente de IA: investiga, arma un plan, escribe páginas de estudio, te evalúa y programa los repasos.",
+  "author": { "name": "Rubén Salas" },
+  "homepage": "https://github.com/ruben-salas20/estudio-skills",
+  "repository": "https://github.com/ruben-salas20/estudio-skills",
+  "license": "MIT"
+}

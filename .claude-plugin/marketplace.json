@@ -1,0 +1,12 @@
+{
+  "name": "estudio-skills",
+  "description": "Skills para estudiar con un agente de IA.",
+  "owner": { "name": "Rubén Salas" },
+  "plugins": [
+    {
+      "name": "estudio",
+      "source": "./",
+      "description": "Skills para estudiar con un agente de IA: investiga, arma un plan, escribe páginas de estudio, te evalúa y programa los repasos."
+    }
+  ]
+}

@@ -11,7 +11,29 @@ Sirve para dos tipos de estudio:
 
 ## Instalación
 
-Necesitas un agente que use skills y pueda lanzar subagentes, como [Claude Code](https://claude.com/claude-code), y Node.js.
+Necesitas un agente que use skills y pueda lanzar subagentes, como [Claude Code](https://claude.com/claude-code).
+
+Hay dos formas de instalar. Usa solo una: con las dos, cada skill aparece dos veces.
+
+### Como plugin de Claude Code
+
+1. En Claude Code, escribe:
+
+   ```
+   /plugin install estudio --marketplace ruben-salas20/estudio-skills
+   ```
+
+   Antes de la versión 2.1.275 de Claude Code, son dos comandos: `/plugin marketplace add ruben-salas20/estudio-skills` y después `/plugin install estudio@estudio-skills`.
+
+2. Escribe `/estudio:setup-estudio-skills`. Te pregunta cómo te gusta aprender y dónde está tu carpeta de estudio, y escribe tu `AGENTS.md`.
+
+Con el plugin, cada comando lleva delante `estudio:`: `/estudiar` es `/estudio:estudiar`. El resto de este README los escribe sin ese prefijo.
+
+**Para actualizar,** ejecuta `claude plugin update estudio@estudio-skills` en la terminal, vuelve a abrir Claude Code y escribe `/estudio:setup-estudio-skills`. También puedes activar la actualización automática en `/plugin`, en **Marketplaces**.
+
+### Con npx, en Claude Code y otros agentes
+
+Necesitas Node.js.
 
 1. Instala todas las skills:
 
@@ -23,9 +45,7 @@ Necesitas un agente que use skills y pueda lanzar subagentes, como [Claude Code]
 
 Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe. Solo `/crear-kit` es opcional.
 
-`/escenas-3d` y `/videos` necesitan **Chromium o Chrome** para comprobar lo que hacen. `/videos` necesita además **Node, Playwright y ffmpeg** solo si pides un MP4 o un vídeo con voz.
-
-**Para actualizar,** ejecuta `npx skills update -g` y después `/setup-estudio-skills`. La actualización sobrescribe las skills; el setup vuelve a aplicar las mejoras que aprobaste, guardadas en `MEJORAS.md`.
+**Para actualizar,** ejecuta `npx skills update -g` y después `/setup-estudio-skills`.
 
 `npx skills` envía estadísticas de uso anónimas a [skills.sh](https://skills.sh). Para desactivarlas, añade `DO_NOT_TRACK=1` antes del comando.
 
@@ -35,6 +55,12 @@ Instala todas las skills: se usan entre ellas y, si falta una, el flujo se rompe
 Clona este repositorio y copia cada carpeta de `skills/` a la carpeta de skills de tu agente (en Claude Code, `~/.claude/skills/`). Después escribe `/setup-estudio-skills`.
 
 </details>
+
+### Para las dos formas
+
+`/escenas-3d` y `/videos` necesitan **Chromium o Chrome** para comprobar lo que hacen. `/videos` necesita además **Node, Playwright y ffmpeg** solo si pides un MP4 o un vídeo con voz.
+
+Cada actualización sobrescribe las skills. El setup vuelve a aplicar las mejoras que aprobaste, guardadas en `MEJORAS.md`.
 
 ## Cómo se usa
 
